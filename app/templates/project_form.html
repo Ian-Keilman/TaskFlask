@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - TaskFlask{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Project</p>
+    <h1>{{ title }}</h1>
+</section>
+
+<form class="form-panel" method="post" action="{{ form_action }}">
+    <label for="name">Name</label>
+    <input id="name" name="name" type="text" value="{{ project.name if project else '' }}" required>
+    {% if errors.name %}<p class="field-error">{{ errors.name }}</p>{% endif %}
+
+    <label for="description">Description</label>
+    <textarea id="description" name="description" rows="5">{{ project.description if project else '' }}</textarea>
+
+    <div class="actions">
+        <button class="button" type="submit">Save Project</button>
+        <a class="button secondary" href="{{ url_for('main.projects') }}">Cancel</a>
+    </div>
+</form>
+{% endblock %}
