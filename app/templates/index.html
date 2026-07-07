@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Home - TaskFlask{% endblock %}
+
+{% block content %}
+<section class="page-header row-header">
+    <div>
+        <p class="eyebrow">TaskFlask</p>
+        <h1>Welcome to TaskFlask</h1>
+        <p class="muted">
+            A lightweight sprint and project tracking app for student software engineering teams.
+        </p>
+    </div>
+</section>
+
+<section class="plain-section">
+    <div class="row-header section-heading">
+        <div>
+            <h2>Projects</h2>
+            <p class="muted">
+                Create and manage projects for your team.
+            </p>
+        </div>
+        <a class="button" href="{{ url_for('main.new_project') }}">Create Project</a>
+    </div>
+
+    {% if projects %}
+        <div class="dashboard-project-list">
+            {% for project in projects %}
+                <article class="card project-summary-card">
+                    <div class="row-header">
+                        <div>
+                            <h3>
+                                <a href="{{ url_for('main.project_detail', project_id=project.id) }}">
+                                    {{ project.name }}
+                                </a>
+                            </h3>
+                            <p>{{ project.description or "No project description yet." }}</p>
+                        </div>
+                        <a class="button secondary" href="{{ url_for('main.project_detail', project_id=project.id) }}">
+                            View Project
+                        </a>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+
+        <p>
+            <a class="text-link" href="{{ url_for('main.projects') }}">View all projects</a>
+        </p>
+    {% else %}
+        <div class="empty-panel">
+            <h2>No projects yet</h2>
+            <p>Create your first project to start organizing your team’s work.</p>
+            <a class="button" href="{{ url_for('main.new_project') }}">Create Project</a>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

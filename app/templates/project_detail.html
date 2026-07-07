@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} - TaskFlask{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="row-header">
+        <div>
+            <p class="eyebrow">Project</p>
+            <h1>{{ project.name }}</h1>
+        </div>
+
+        <div class="actions compact">
+            <a class="button secondary" href="{{ url_for('main.edit_project', project_id=project.id) }}">Edit</a>
+
+            <form method="post" action="{{ url_for('main.delete_project', project_id=project.id) }}" data-confirm="Delete this project?">
+                <button class="button danger" type="submit">Delete</button>
+            </form>
+        </div>
+    </div>
+
+    <p>{{ project.description or "No project description yet." }}</p>
+</section>
+
+<section class="plain-section">
+    <h2>Project Details</h2>
+
+    <p>This page shows the basic information for this project.</p>
+
+    <div class="actions">
+        <a class="button secondary" href="{{ url_for('main.projects') }}">Back to Projects</a>
+        <a class="button" href="{{ url_for('main.edit_project', project_id=project.id) }}">Edit Project</a>
+    </div>
+</section>
+{% endblock %}
