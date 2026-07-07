@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Projects - TaskFlask{% endblock %}
+
+{% block content %}
+<section class="page-header row-header">
+    <div>
+        <p class="eyebrow">Project list</p>
+        <h1>Projects</h1>
+    </div>
+    <a class="button" href="{{ url_for('main.new_project') }}">New Project</a>
+</section>
+
+{% if projects %}
+    <div class="item-list">
+        {% for project in projects %}
+            <article class="card">
+                <div class="row-header">
+                    <div>
+                        <h2>
+                            <a href="{{ url_for('main.project_detail', project_id=project.id) }}">
+                                {{ project.name }}
+                            </a>
+                        </h2>
+                        <p>{{ project.description or "No description yet." }}</p>
+                        <p class="muted">Updated {{ project.updated_at }}</p>
+                    </div>
+
+                    <div class="actions compact">
+                        <a class="button secondary" href="{{ url_for('main.edit_project', project_id=project.id) }}">
+                            Edit
+                        </a>
+
+                        <form method="post" action="{{ url_for('main.delete_project', project_id=project.id) }}" data-confirm="Delete this project?">
+                            <button class="button danger" type="submit">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="empty-state">No projects yet. Create one when your team is ready.</p>
+{% endif %}
+{% endblock %}
