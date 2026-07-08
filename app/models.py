@@ -6,13 +6,8 @@ from .db import get_db
 def _now():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
-
+# Return all projects, newest updated first.
 def list_projects():
-    """
-    Return all projects, newest updated first.
-
-    Sprint 1 only needs a basic project list.
-    """
     return get_db().execute(
         """
         SELECT *
@@ -21,13 +16,8 @@ def list_projects():
         """
     ).fetchall()
 
-
+# Return one project by id.
 def get_project(project_id):
-    """
-    Return one project by id.
-
-    Used for project detail, edit, and delete.
-    """
     return get_db().execute(
         """
         SELECT *
@@ -37,13 +27,8 @@ def get_project(project_id):
         (project_id,),
     ).fetchone()
 
-
+# Create a new project.
 def create_project(name, description):
-    """
-    Create a new project.
-
-    Sprint 1 includes basic project creation.
-    """
     timestamp = _now()
 
     cursor = get_db().execute(
@@ -57,13 +42,8 @@ def create_project(name, description):
     get_db().commit()
     return cursor.lastrowid
 
-
+# Update an existing project.
 def update_project(project_id, name, description):
-    """
-    Update an existing project.
-
-    Sprint 1 includes editing project information.
-    """
     get_db().execute(
         """
         UPDATE projects
@@ -75,12 +55,10 @@ def update_project(project_id, name, description):
 
     get_db().commit()
 
-
+# Delete a project
 def delete_project(project_id):
     """
     Delete a project.
-
-    Sprint 1 includes basic project deletion.
     """
     get_db().execute(
         """
@@ -90,8 +68,10 @@ def delete_project(project_id):
         (project_id,),
     )
 
+    get_db().commit()
+    
+#Return all sprints for one project.
 def list_sprints(project_id):
-    """Return all sprints for one project."""
     return get_db().execute(
         """
         SELECT *
@@ -102,38 +82,8 @@ def list_sprints(project_id):
         (project_id,),
     ).fetchall()
 
-
-def list_sprints_with_progress(project_id):
-    """
-    Return all sprints for a project with simple task progress counts.
-
-    This is okay for Sprint 2 because Sprint 2 includes showing
-    simple sprint progress: total tasks, To Do, In Progress, Done,
-    and percent complete.
-    """
-    return get_db().execute(
-        """
-        SELECT
-            sprints.*,
-            COUNT(tasks.id) AS task_count,
-            COALESCE(SUM(CASE WHEN tasks.status = 'To Do' THEN 1 ELSE 0 END), 0)
-                AS to_do_count,
-            COALESCE(SUM(CASE WHEN tasks.status = 'In Progress' THEN 1 ELSE 0 END), 0)
-                AS in_progress_count,
-            COALESCE(SUM(CASE WHEN tasks.status = 'Done' THEN 1 ELSE 0 END), 0)
-                AS done_count
-        FROM sprints
-        LEFT JOIN tasks ON tasks.sprint_id = sprints.id
-        WHERE sprints.project_id = ?
-        GROUP BY sprints.id
-        ORDER BY sprints.id DESC
-        """,
-        (project_id,),
-    ).fetchall()
-
-
+# Return one sprint by id.
 def get_sprint(sprint_id):
-    """Return one sprint by id."""
     return get_db().execute(
         """
         SELECT *
@@ -143,58 +93,37 @@ def get_sprint(sprint_id):
         (sprint_id,),
     ).fetchone()
 
-
-def get_sprint_with_progress(sprint_id):
-    """
-    Return one sprint with simple task progress counts.
-    """
-    return get_db().execute(
-        """
-        SELECT
-            sprints.*,
-            COUNT(tasks.id) AS task_count,
-            COALESCE(SUM(CASE WHEN tasks.status = 'To Do' THEN 1 ELSE 0 END), 0)
-                AS to_do_count,
-            COALESCE(SUM(CASE WHEN tasks.status = 'In Progress' THEN 1 ELSE 0 END), 0)
-                AS in_progress_count,
-            COALESCE(SUM(CASE WHEN tasks.status = 'Done' THEN 1 ELSE 0 END), 0)
-                AS done_count
-        FROM sprints
-        LEFT JOIN tasks ON tasks.sprint_id = sprints.id
-        WHERE sprints.id = ?
-        GROUP BY sprints.id
-        """,
-        (sprint_id,),
-    ).fetchone()
-
-
+# Create a new sprint under a project.
 def create_sprint(project_id, name, goal, start_date, end_date):
-    """Create a new sprint inside a project."""
     timestamp = _now()
 
     cursor = get_db().execute(
         """
         INSERT INTO sprints
-            (project_id, name, goal, start_date, end_date, status, completed_at, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'Active', NULL, ?, ?)
+            (project_id, name, goal, start_date, end_date, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (project_id, name, goal, start_date, end_date, timestamp, timestamp),
+        (
+            project_id,
+            name,
+            goal,
+            start_date,
+            end_date,
+            "Active",
+            timestamp,
+            timestamp,
+        ),
     )
 
     get_db().commit()
     return cursor.lastrowid
 
-
+# Update an existing sprint.
 def update_sprint(sprint_id, name, goal, start_date, end_date):
-    """Update an existing sprint."""
     get_db().execute(
         """
         UPDATE sprints
-        SET name = ?,
-            goal = ?,
-            start_date = ?,
-            end_date = ?,
-            updated_at = ?
+        SET name = ?, goal = ?, start_date = ?, end_date = ?, updated_at = ?
         WHERE id = ?
         """,
         (name, goal, start_date, end_date, _now(), sprint_id),
@@ -202,32 +131,8 @@ def update_sprint(sprint_id, name, goal, start_date, end_date):
 
     get_db().commit()
 
-
-def update_sprint_status(sprint_id, status):
-    """
-    Mark a sprint as Active or Completed.
-
-    Completed sprints get a completed_at timestamp.
-    Reopened sprints clear completed_at.
-    """
-    completed_at = _now() if status == "Completed" else None
-
-    get_db().execute(
-        """
-        UPDATE sprints
-        SET status = ?,
-            completed_at = ?,
-            updated_at = ?
-        WHERE id = ?
-        """,
-        (status, completed_at, _now(), sprint_id),
-    )
-
-    get_db().commit()
-
-
+# Delete a sprint
 def delete_sprint(sprint_id):
-    """Delete a sprint."""
     get_db().execute(
         """
         DELETE FROM sprints
@@ -237,4 +142,53 @@ def delete_sprint(sprint_id):
     )
 
     get_db().commit()
-    
+
+# Mark a sprint as Active or Completed.
+def update_sprint_status(sprint_id, status):
+    timestamp = _now()
+    completed_at = timestamp if status == "Completed" else None
+
+    get_db().execute(
+        """
+        UPDATE sprints
+        SET status = ?, completed_at = ?, updated_at = ?
+        WHERE id = ?
+        """,
+        (status, completed_at, timestamp, sprint_id),
+    )
+
+    get_db().commit()
+
+# Return simple sprint progress.
+def get_sprint_progress(sprint_id):
+    return {
+        "total": 0,
+        "to_do": 0,
+        "in_progress": 0,
+        "done": 0,
+        "percent_complete": 0,
+    }
+
+def list_projects_with_sprint_counts():
+    return get_db().execute(
+        """
+        SELECT
+            projects.*,
+            COALESCE(SUM(CASE WHEN sprints.status = 'Active' THEN 1 ELSE 0 END), 0) AS active_sprint_count,
+            COALESCE(SUM(CASE WHEN sprints.status = 'Completed' THEN 1 ELSE 0 END), 0) AS completed_sprint_count
+        FROM projects
+        LEFT JOIN sprints ON sprints.project_id = projects.id
+        GROUP BY projects.id
+        ORDER BY projects.updated_at DESC, projects.id DESC
+        """
+    ).fetchall()
+
+def get_dashboard_counts():
+    return get_db().execute(
+        """
+        SELECT
+            (SELECT COUNT(*) FROM projects) AS project_count,
+            (SELECT COUNT(*) FROM sprints WHERE status = 'Active') AS active_sprint_count,
+            0 AS team_member_count
+        """
+    ).fetchone()
