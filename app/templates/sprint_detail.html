@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}{{ sprint.name }} - TaskFlask{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Sprint</p>
+    <h1>{{ sprint.name }}</h1>
+    <p>{{ sprint.goal or "No sprint goal yet." }}</p>
+</section>
+
+<section class="plain-section">
+    <p><strong>Status:</strong> {{ sprint.status }}</p>
+    <p><strong>Start Date:</strong> {{ sprint.start_date or "No start date" }}</p>
+    <p><strong>End Date:</strong> {{ sprint.end_date or "No end date" }}</p>
+
+    {% if sprint.completed_at %}
+        <p><strong>Completed At:</strong> {{ sprint.completed_at }}</p>
+    {% endif %}
+</section>
+
+<section class="plain-section">
+    <h2>Sprint Progress</h2>
+    <p><strong>Total Tasks:</strong> {{ sprint.total or 0 }}</p>
+    <p><strong>To Do:</strong> {{ sprint.to_do or 0 }}</p>
+    <p><strong>In Progress:</strong> {{ sprint.in_progress or 0 }}</p>
+    <p><strong>Done:</strong> {{ sprint.done or 0 }}</p>
+    <p><strong>Percent Complete:</strong> {{ sprint.percent_complete or 0 }}%</p>
+</section>
+
+<section class="plain-section">
+    <div class="actions">
+        <a class="button secondary" href="{{ url_for('main.edit_sprint', sprint_id=sprint.id) }}">Edit Sprint</a>
+
+        {% if sprint.status == "Active" %}
+            <form method="post" action="{{ url_for('main.change_sprint_status', sprint_id=sprint.id) }}">
+                <input type="hidden" name="status" value="Completed">
+                <button class="button" type="submit">Mark Completed</button>
+            </form>
+        {% else %}
+            <form method="post" action="{{ url_for('main.change_sprint_status', sprint_id=sprint.id) }}">
+                <input type="hidden" name="status" value="Active">
+                <button class="button" type="submit">Reopen Sprint</button>
+            </form>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('main.delete_sprint', sprint_id=sprint.id) }}">
+            <button class="button danger" type="submit">Delete Sprint</button>
+        </form>
+
+        <a class="button secondary" href="{{ url_for('main.project_detail', project_id=project.id) }}">Back to Project</a>
+    </div>
+</section>
+{% endblock %}
