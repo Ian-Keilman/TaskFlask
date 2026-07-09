@@ -10,12 +10,26 @@
 <body>
     <header class="site-header">
         <nav class="nav">
-            <a class="brand" href="{{ url_for('main.index') }}">TaskFlask</a>
+            <a class="brand" href="{{ url_for('main.index') }}">
+                <span class="brand-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 2h6" />
+                        <path d="M10 2v6l-5.5 9.5A3 3 0 0 0 7.1 22h9.8a3 3 0 0 0 2.6-4.5L14 8V2" />
+                        <path d="M8 15h8" />
+                        <path d="M9.5 18h5" />
+                    </svg>
+                </span>
+                <span>TaskFlask</span>
+            </a>
+
             <div class="nav-links">
-                <a href="{{ url_for('main.index') }}">Dashboard</a>
-                <a href="{{ url_for('main.projects') }}">Projects</a>
+                <a class="{% if request.endpoint == 'main.index' %}active{% endif %}" href="{{ url_for('main.index') }}">
+                    Dashboard
+                </a>
+                <a class="{% if request.endpoint == 'main.projects' %}active{% endif %}" href="{{ url_for('main.projects') }}">
+                    Projects
+                </a>
             </div>
-            <a class="button nav-action" href="{{ url_for('main.new_project') }}">New Project</a>
         </nav>
     </header>
 
