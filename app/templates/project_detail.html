@@ -3,109 +3,106 @@
 {% block title %}{{ project.name }} - TaskFlask{% endblock %}
 
 {% block content %}
-<section class="project-hero card">
-    <div class="row-header">
-        <div>
-            <p class="eyebrow">Project</p>
-            <h1>{{ project.name }}</h1>
-            <p>{{ project.description or "No project description yet." }}</p>
+<nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="{{ url_for('main.projects') }}">Projects</a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">{{ project.name }}</span>
+</nav>
+
+<section class="project-overview card">
+    <div class="project-overview-icon" aria-hidden="true">
+        <span class="project-folder-icon"></span>
+    </div>
+
+    <div class="project-overview-content">
+        <div class="project-overview-heading">
+            <div>
+                <p class="eyebrow">Project workspace</p>
+                <h1>{{ project.name }}</h1>
+                <p>{{ project.description or "Add a project description to give your team more context." }}</p>
+            </div>
+
+            <div class="project-overview-actions">
+                <a class="button secondary small" href="{{ url_for('main.edit_project', project_id=project.id) }}">Edit Project</a>
+                <form method="post" action="{{ url_for('main.delete_project', project_id=project.id) }}" data-confirm="Delete this project and all of its sprints and tasks?">
+                    <button class="button danger-outline small" type="submit">Delete Project</button>
+                </form>
+            </div>
         </div>
 
-        <div class="actions compact">
-            <a class="button secondary" href="{{ url_for('main.edit_project', project_id=project.id) }}">
-                ✎ Edit
-            </a>
-
-            <form method="post" action="{{ url_for('main.delete_project', project_id=project.id) }}" data-confirm="Delete this project?">
-                <button class="button danger-outline" type="submit">🗑 Delete</button>
-            </form>
+        <div class="project-overview-meta">
+            <span>Created {{ project.created_at|friendly_datetime }}</span>
+            <span>Updated {{ project.updated_at|friendly_datetime }}</span>
         </div>
     </div>
 </section>
 
-<section class="sprint-section">
-    <div class="section-header">
-        <h2>Sprints</h2>
-        <a class="button" href="{{ url_for('main.new_sprint', project_id=project.id) }}">
-            + New Sprint
-        </a>
-    </div>
+<section class="project-sprints-section">
+    <header class="project-sprints-header">
+        <div>
+            <p class="eyebrow">Planning cycles</p>
+            <h2>Sprints</h2>
+            <p class="muted">Open a sprint to manage its task board and progress.</p>
+        </div>
+        <div class="projects-header-actions">
+            <span class="board-total">{{ sprints|length }} sprint{% if sprints|length != 1 %}s{% endif %}</span>
+            <a class="button" href="{{ url_for('main.new_sprint', project_id=project.id) }}">+ New Sprint</a>
+        </div>
+    </header>
 
     {% if sprints %}
-        <div class="item-list">
+        <div class="project-sprint-list">
             {% for sprint in sprints %}
-                <article class="sprint-card card">
-                    <div class="row-header">
-                        <div class="sprint-main">
-                            <div class="sprint-top">
-                                <div class="sprint-icon">⚑</div>
+                <article class="project-sprint-card card">
+                    <div class="sprint-card-status-rail status-rail-{{ sprint.status|lower }}" aria-hidden="true"></div>
 
-                                <div>
-                                    <h3>
-                                        <a href="{{ url_for('main.sprint_detail', sprint_id=sprint.id) }}">
-                                            {{ sprint.name }}
-                                        </a>
-                                    </h3>
-
-                                    <p>{{ sprint.goal or "No sprint goal yet." }}</p>
-
-                                    <p class="muted sprint-dates">
-                                        🗓
-                                        {% if sprint.start_date or sprint.end_date %}
-                                            {{ sprint.start_date or "No start date" }} to {{ sprint.end_date or "No end date" }}
-                                        {% else %}
-                                            No sprint dates set
-                                        {% endif %}
-                                    </p>
+                    <div class="project-sprint-content">
+                        <div class="project-sprint-heading">
+                            <div>
+                                <div class="sprint-name-row">
+                                    <span class="status-pill status-{{ sprint.status|lower }}">● {{ sprint.status }}</span>
+                                    <h3><a href="{{ url_for('main.sprint_detail', sprint_id=sprint.id) }}">{{ sprint.name }}</a></h3>
                                 </div>
+                                <p>{{ sprint.goal or "No sprint goal has been added yet." }}</p>
+                            </div>
+
+                            <div class="project-list-actions">
+                                <a class="button secondary small" href="{{ url_for('main.sprint_detail', sprint_id=sprint.id) }}">Open Board →</a>
+                                <a class="task-action-link" href="{{ url_for('main.edit_sprint', sprint_id=sprint.id) }}">Edit</a>
+                                <form method="post" action="{{ url_for('main.delete_sprint', sprint_id=sprint.id) }}" data-confirm="Delete this sprint and all of its tasks?">
+                                    <button class="task-action-link danger-text" type="submit">Delete</button>
+                                </form>
                             </div>
                         </div>
 
-                        <div class="actions compact">
-                            <a class="button secondary" href="{{ url_for('main.edit_sprint', sprint_id=sprint.id) }}">
-                                ✎ Edit
-                            </a>
-
-                            <form method="post" action="{{ url_for('main.delete_sprint', sprint_id=sprint.id) }}" data-confirm="Delete this sprint?">
-                                <button class="button danger-outline" type="submit">🗑 Delete</button>
-                            </form>
+                        <div class="project-sprint-dates">
+                            <span><strong>Start</strong> {{ sprint.start_date or "Not set" }}</span>
+                            <span><strong>End</strong> {{ sprint.end_date or "Not set" }}</span>
                         </div>
-                    </div>
 
-                    <hr>
-
-                    <div class="sprint-bottom">
-                        <p>
-                            <strong>Status</strong>
-                            <span class="status-pill status-{{ sprint.status|lower }}">
-                                ● {{ sprint.status }}
-                            </span>
-                        </p>
-
-                        {% if sprint.total %}
-                            <div class="progress-bar" aria-label="{{ sprint.percent_complete }} percent complete">
+                        <div class="project-sprint-progress">
+                            <div class="progress-heading">
+                                <strong>{{ sprint.percent_complete }}% complete</strong>
+                                {% if sprint.total %}
+                                    <span>{{ sprint.done }} of {{ sprint.total }} tasks done</span>
+                                {% else %}
+                                    <span>No tasks added yet</span>
+                                {% endif %}
+                            </div>
+                            <div class="progress-bar progress-bar-large" aria-label="{{ sprint.percent_complete }} percent complete">
                                 <span style="width: {{ sprint.percent_complete }}%"></span>
                             </div>
-
-                            <p class="muted">
-                                <strong>{{ sprint.percent_complete }}% complete</strong>
-                                · {{ sprint.done }} of {{ sprint.total }} tasks done
-                            </p>
-                        {% else %}
-                            <p class="empty-progress">☷ No tasks added yet.</p>
-                        {% endif %}
+                        </div>
                     </div>
                 </article>
             {% endfor %}
         </div>
     {% else %}
-        <p class="empty-state">No sprints yet. Add a sprint to start organizing work for this project.</p>
+        <div class="empty-panel projects-empty-state">
+            <div class="sprint-icon" aria-hidden="true">⚑</div>
+            <h2>No sprints yet</h2>
+            <p>Create a sprint to start planning tasks and tracking progress.</p>
+        </div>
     {% endif %}
-</section>
-
-<section class="plain-section">
-    <a class="button secondary back-button" href="{{ url_for('main.projects') }}">
-        ← Back to Projects
-    </a>
 </section>
 {% endblock %}
