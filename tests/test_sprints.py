@@ -126,4 +126,3 @@ def test_sprint_end_date_cannot_be_before_start_date(client, make_project):
 
     assert response.status_code == 200
     assert b"End date should be on or after the start date." in response.data
-    
