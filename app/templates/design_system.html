@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Design System - TaskFlask{% endblock %}
+
+{% block content %}
+<main class="design-system-page">
+    <header class="design-system-intro">
+        <p class="eyebrow">TaskFlask UI</p>
+        <h1>Design system</h1>
+        <p class="muted">The shared visual language for TaskFlask pages, components, and interaction states.</p>
+    </header>
+
+    <section class="design-section" aria-labelledby="colors-heading">
+        <h2 id="colors-heading">Color</h2>
+        <div class="design-grid">
+            <article class="card color-swatch">
+                <div class="color-swatch-preview" style="background: var(--color-brand-600)"></div>
+                <div class="color-swatch-label"><strong>Brand</strong><span>#19744f</span></div>
+            </article>
+            <article class="card color-swatch">
+                <div class="color-swatch-preview" style="background: var(--color-brand-100)"></div>
+                <div class="color-swatch-label"><strong>Brand subtle</strong><span>#e3f1ea</span></div>
+            </article>
+            <article class="card color-swatch">
+                <div class="color-swatch-preview" style="background: var(--color-neutral-900)"></div>
+                <div class="color-swatch-label"><strong>Text</strong><span>#17211c</span></div>
+            </article>
+            <article class="card color-swatch">
+                <div class="color-swatch-preview" style="background: var(--color-danger-600)"></div>
+                <div class="color-swatch-label"><strong>Danger</strong><span>#a33a2f</span></div>
+            </article>
+        </div>
+    </section>
+
+    <section class="design-section card" aria-labelledby="type-heading">
+        <h2 id="type-heading">Typography</h2>
+        <div><span class="type-label">Display</span><h1 class="type-sample">Plan work with clarity</h1></div>
+        <div><span class="type-label">Heading</span><h2 class="type-sample">Current sprint</h2></div>
+        <div><span class="type-label">Body</span><p class="type-sample">Keep projects, sprints, and tasks moving in one focused workspace.</p></div>
+        <div><span class="type-label">Supporting</span><p class="type-sample muted">Updated just now</p></div>
+    </section>
+
+    <section class="design-section card" aria-labelledby="buttons-heading">
+        <h2 id="buttons-heading">Buttons</h2>
+        <div class="component-row">
+            <button class="button" type="button">Primary action</button>
+            <button class="button secondary" type="button">Secondary action</button>
+            <button class="button danger" type="button">Destructive action</button>
+            <button class="button" type="button" disabled>Disabled action</button>
+        </div>
+    </section>
+
+    <section class="design-section card" aria-labelledby="status-heading">
+        <h2 id="status-heading">Statuses and priorities</h2>
+        <div class="component-row">
+            <span class="status-pill status-active">● Active</span>
+            <span class="status-pill status-completed">● Completed</span>
+            <span class="priority-pill priority-high">High priority</span>
+            <span class="priority-pill priority-medium">Medium priority</span>
+            <span class="priority-pill priority-low">Low priority</span>
+        </div>
+    </section>
+
+    <section class="design-section card" aria-labelledby="forms-heading">
+        <h2 id="forms-heading">Form controls</h2>
+        <div class="form-grid">
+            <div><label for="sample-name">Task name</label><input id="sample-name" value="Review sprint plan"></div>
+            <div><label for="sample-status">Status</label><select id="sample-status"><option>In Progress</option></select></div>
+        </div>
+        <div><label for="sample-description">Description</label><textarea id="sample-description" rows="3">Confirm the team’s scope and priorities.</textarea></div>
+    </section>
+</main>
+{% endblock %}
