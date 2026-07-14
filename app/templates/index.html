@@ -35,12 +35,11 @@
 
 <section class="dashboard-stats">
     <article class="stat-card">
-        <div class="stat-icon">▭</div>
+        <div class="stat-icon" aria-hidden="true"><span class="project-folder-icon"></span></div>
         <div>
             <p>Total Projects</p>
             <strong>{{ summary.project_count }}</strong>
         </div>
-        <span class="stat-arrow">↗</span>
     </article>
 
     <article class="stat-card">
@@ -49,7 +48,6 @@
             <p>Active Sprints</p>
             <strong>{{ summary.active_sprint_count }}</strong>
         </div>
-        <span class="stat-arrow">↗</span>
     </article>
 
     <article class="stat-card">
@@ -58,7 +56,6 @@
             <p>Team Members</p>
             <strong>{{ summary.team_member_count }}</strong>
         </div>
-        <span class="stat-arrow">↗</span>
     </article>
 </section>
 
@@ -67,16 +64,27 @@
         <div>
             <h2>Projects</h2>
             <p class="muted">Create and manage projects for your team.</p>
+            {% if summary.project_count > projects|length %}
+                <p class="dashboard-preview-count">Showing {{ projects|length }} of {{ summary.project_count }} projects</p>
+            {% endif %}
         </div>
 
-        <button class="sort-button" type="button">Recently updated ⌄</button>
+        <form class="sort-form" method="get" action="{{ url_for('main.index') }}">
+            <label class="visually-hidden" for="project-sort">Sort projects</label>
+            <select class="sort-select" id="project-sort" name="sort" onchange="this.form.submit()">
+                <option value="recent" {% if project_sort == 'recent' %}selected{% endif %}>Recently updated</option>
+                <option value="name" {% if project_sort == 'name' %}selected{% endif %}>Project name</option>
+                <option value="progress" {% if project_sort == 'progress' %}selected{% endif %}>Highest progress</option>
+            </select>
+            <noscript><button class="button secondary small" type="submit">Sort</button></noscript>
+        </form>
     </div>
 
     {% if projects %}
         <div class="dashboard-project-list">
             {% for project in projects %}
                 <article class="dashboard-project-card">
-                    <div class="project-icon">▭</div>
+                    <div class="project-icon" aria-hidden="true"><span class="project-folder-icon"></span></div>
 
                     <div class="project-card-copy">
                         <h3>
@@ -93,8 +101,12 @@
                                 <span class="mini-pill active">● No active sprint</span>
                             {% endif %}
 
-                            <span class="mini-pill neutral">Updated just now</span>
+                            <span class="mini-pill neutral">Updated {{ project.updated_at|friendly_datetime }}</span>
                         </div>
+
+                        {% if project.total %}
+                            <p class="muted"><strong>{{ project.percent_complete }}% complete</strong> · {{ project.done }} of {{ project.total }} tasks done</p>
+                        {% endif %}
                     </div>
 
                     <a class="button secondary view-project-button" href="{{ url_for('main.project_detail', project_id=project.id) }}">
@@ -104,9 +116,11 @@
             {% endfor %}
         </div>
 
-        <p class="view-all-row">
-            <a class="text-link" href="{{ url_for('main.projects') }}">↗ View all projects →</a>
-        </p>
+        {% if summary.project_count > projects|length %}
+            <p class="view-all-row">
+                <a class="text-link" href="{{ url_for('main.projects') }}">View all {{ summary.project_count }} projects →</a>
+            </p>
+        {% endif %}
     {% else %}
         <div class="empty-panel">
             <h2>No projects yet</h2>
