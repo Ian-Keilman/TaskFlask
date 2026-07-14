@@ -3,52 +3,191 @@
 {% block title %}{{ sprint.name }} - TaskFlask{% endblock %}
 
 {% block content %}
-<section class="page-header">
-    <p class="eyebrow">Sprint</p>
-    <h1>{{ sprint.name }}</h1>
-    <p>{{ sprint.goal or "No sprint goal yet." }}</p>
-</section>
+<nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="{{ url_for('main.projects') }}">Projects</a>
+    <span aria-hidden="true">/</span>
+    <a href="{{ url_for('main.project_detail', project_id=project.id) }}">{{ project.name }}</a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">{{ sprint.name }}</span>
+</nav>
 
-<section class="plain-section">
-    <p><strong>Status:</strong> {{ sprint.status }}</p>
-    <p><strong>Start Date:</strong> {{ sprint.start_date or "No start date" }}</p>
-    <p><strong>End Date:</strong> {{ sprint.end_date or "No end date" }}</p>
+<section class="sprint-workspace-header card">
+    <div class="sprint-workspace-title">
+        <div>
+            <div class="sprint-title-meta">
+                <p class="eyebrow">Sprint workspace</p>
+                <span class="status-pill status-{{ sprint.status|lower }}">● {{ sprint.status }}</span>
+            </div>
+            <h1>{{ sprint.name }}</h1>
+            <p class="sprint-goal">{{ sprint.goal or "Add a sprint goal to keep the team focused." }}</p>
+        </div>
 
-    {% if sprint.completed_at %}
-        <p><strong>Completed At:</strong> {{ sprint.completed_at }}</p>
-    {% endif %}
-</section>
+        <div class="sprint-primary-actions">
+            <a class="button" href="{{ url_for('main.new_task', sprint_id=sprint.id) }}">+ New Task</a>
+            <a class="button secondary" href="{{ url_for('main.edit_sprint', sprint_id=sprint.id) }}">Edit Sprint</a>
+        </div>
+    </div>
 
-<section class="plain-section">
-    <h2>Sprint Progress</h2>
-    <p><strong>Total Tasks:</strong> {{ sprint.total or 0 }}</p>
-    <p><strong>To Do:</strong> {{ sprint.to_do or 0 }}</p>
-    <p><strong>In Progress:</strong> {{ sprint.in_progress or 0 }}</p>
-    <p><strong>Done:</strong> {{ sprint.done or 0 }}</p>
-    <p><strong>Percent Complete:</strong> {{ sprint.percent_complete or 0 }}%</p>
-</section>
+    <div class="sprint-date-row">
+        <span><strong>Start</strong> {{ sprint.start_date or "Not set" }}</span>
+        <span><strong>End</strong> {{ sprint.end_date or "Not set" }}</span>
+        {% if sprint.completed_at %}<span><strong>Completed</strong> {{ sprint.completed_at }}</span>{% endif %}
+    </div>
 
-<section class="plain-section">
-    <div class="actions">
-        <a class="button secondary" href="{{ url_for('main.edit_sprint', sprint_id=sprint.id) }}">Edit Sprint</a>
+    <div class="sprint-progress-layout">
+        <div class="sprint-progress-main">
+            <div class="progress-heading">
+                <strong>Overall progress</strong>
+                <span>{{ progress.done }} of {{ progress.total }} tasks complete</span>
+            </div>
+            <div class="progress-bar progress-bar-large" aria-label="{{ progress.percent_complete }} percent complete">
+                <span style="width: {{ progress.percent_complete }}%"></span>
+            </div>
+        </div>
 
-        {% if sprint.status == "Active" %}
-            <form method="post" action="{{ url_for('main.change_sprint_status', sprint_id=sprint.id) }}">
-                <input type="hidden" name="status" value="Completed">
-                <button class="button" type="submit">Mark Completed</button>
-            </form>
-        {% else %}
-            <form method="post" action="{{ url_for('main.change_sprint_status', sprint_id=sprint.id) }}">
-                <input type="hidden" name="status" value="Active">
-                <button class="button" type="submit">Reopen Sprint</button>
-            </form>
-        {% endif %}
+        <div class="sprint-metrics" aria-label="Sprint task totals">
+            <div><strong>{{ progress.to_do }}</strong><span>To Do</span></div>
+            <div><strong>{{ progress.in_progress }}</strong><span>In Progress</span></div>
+            <div><strong>{{ progress.done }}</strong><span>Done</span></div>
+            <div><strong>{{ progress.percent_complete }}%</strong><span>Complete</span></div>
+        </div>
+    </div>
 
-        <form method="post" action="{{ url_for('main.delete_sprint', sprint_id=sprint.id) }}">
-            <button class="button danger" type="submit">Delete Sprint</button>
+    <div class="sprint-secondary-actions">
+        <div class="sprint-lifecycle-action">
+            {% if sprint.status == "Active" %}
+                <form method="post" action="{{ url_for('main.change_sprint_status', sprint_id=sprint.id) }}">
+                    <input type="hidden" name="status" value="Completed">
+                    <button class="button secondary small" type="submit">✓ Mark Complete</button>
+                </form>
+                <span>Close this sprint when all planned work is finished.</span>
+            {% else %}
+                <form method="post" action="{{ url_for('main.change_sprint_status', sprint_id=sprint.id) }}">
+                    <input type="hidden" name="status" value="Active">
+                    <button class="button secondary small" type="submit">↻ Reopen Sprint</button>
+                </form>
+                <span>Move this sprint back into active work.</span>
+            {% endif %}
+        </div>
+        <form method="post" action="{{ url_for('main.delete_sprint', sprint_id=sprint.id) }}" data-confirm="Delete this sprint and all of its tasks?">
+            <button class="button danger-outline small" type="submit">Delete Sprint</button>
         </form>
-
-        <a class="button secondary" href="{{ url_for('main.project_detail', project_id=project.id) }}">Back to Project</a>
     </div>
 </section>
+
+<section class="task-toolbar card" aria-labelledby="filter-heading">
+    <div class="task-toolbar-heading">
+        <div>
+            <p class="eyebrow">Task board</p>
+            <h2 id="filter-heading">Filter tasks</h2>
+        </div>
+        {% if filters.assignee or filters.priority or filters.status %}
+            <span class="filter-active-pill">Filters active</span>
+        {% endif %}
+    </div>
+
+    <form class="filter-form" method="get" action="{{ url_for('main.sprint_detail', sprint_id=sprint.id) }}">
+        <div class="filter-field">
+            <label for="assignee">Assignee</label>
+            <select id="assignee" name="assignee">
+                <option value="">All assignees</option>
+                {% for assignee in assignees %}
+                    <option value="{{ assignee }}" {% if filters.assignee == assignee %}selected{% endif %}>{{ assignee }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="priority">Priority</label>
+            <select id="priority" name="priority">
+                <option value="">All priorities</option>
+                {% for priority in priorities %}
+                    <option value="{{ priority }}" {% if filters.priority == priority %}selected{% endif %}>{{ priority }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-field">
+            <label for="status">Status</label>
+            <select id="status" name="status">
+                <option value="">All statuses</option>
+                {% for status in statuses %}
+                    <option value="{{ status }}" {% if filters.status == status %}selected{% endif %}>{{ status }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button class="button" type="submit">Apply</button>
+        <a class="button secondary" href="{{ url_for('main.sprint_detail', sprint_id=sprint.id) }}">Clear</a>
+    </form>
+</section>
+
+<div class="board-intro">
+    <div>
+        <h2>Tasks</h2>
+        <p class="muted">Drag a card between columns to update its status.</p>
+    </div>
+    <span class="board-total">{{ progress.total }} total task{% if progress.total != 1 %}s{% endif %}</span>
+</div>
+
+<section class="task-board" aria-label="Sprint task board" data-task-board>
+    {% for status in statuses %}
+        <section class="task-column task-column-{{ status|lower|replace(' ', '-') }}" data-status="{{ status }}">
+            <header class="task-column-header">
+                <div>
+                    <span class="column-dot" aria-hidden="true"></span>
+                    <h2>{{ status }}</h2>
+                </div>
+                <span class="task-count">{{ grouped_tasks[status]|length }}</span>
+            </header>
+
+            <div class="task-list" data-drop-zone>
+                {% for task in grouped_tasks[status] %}
+                    <article class="task-card" draggable="true" data-task-id="{{ task.id }}" data-status-url="{{ url_for('main.change_task_status', task_id=task.id) }}">
+                        <div class="task-card-topline">
+                            <span class="priority-pill priority-{{ task.priority|lower }}">{{ task.priority }}</span>
+                            <span class="drag-handle" aria-hidden="true" title="Drag to move">⋮⋮</span>
+                        </div>
+
+                        <h3>{{ task.title }}</h3>
+                        <p class="task-description">{{ task.description or "No description provided." }}</p>
+
+                        <div class="task-metadata">
+                            {% if task.assignee %}
+                                <span class="assignee-chip"><span aria-hidden="true">●</span> {{ task.assignee }}</span>
+                            {% else %}
+                                <span class="muted">Unassigned</span>
+                            {% endif %}
+                            {% if task.due_date %}<span>Due {{ task.due_date }}</span>{% endif %}
+                        </div>
+
+                        <div class="task-card-actions">
+                            <a class="task-action-link" href="{{ url_for('main.edit_task', task_id=task.id) }}">Edit</a>
+                            <form method="post" action="{{ url_for('main.delete_task', task_id=task.id) }}" data-confirm="Delete this task?">
+                                <button class="task-action-link danger-text" type="submit">Delete</button>
+                            </form>
+                        </div>
+
+                        <form class="status-form" method="post" action="{{ url_for('main.change_task_status', task_id=task.id) }}">
+                            <label class="visually-hidden" for="task-status-{{ task.id }}">Change status for {{ task.title }}</label>
+                            <select id="task-status-{{ task.id }}" name="status">
+                                {% for next_status in statuses %}
+                                    <option value="{{ next_status }}" {% if task.status == next_status %}selected{% endif %}>{{ next_status }}</option>
+                                {% endfor %}
+                            </select>
+                            <button class="button secondary small" type="submit">Move</button>
+                        </form>
+                    </article>
+                {% else %}
+                    <div class="column-empty">
+                        <span aria-hidden="true">+</span>
+                        <p>No tasks in {{ status }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    {% endfor %}
+</section>
+
+<div class="drag-status visually-hidden" role="status" aria-live="polite"></div>
 {% endblock %}

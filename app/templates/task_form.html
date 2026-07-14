@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - TaskFlask{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <p class="eyebrow">Task</p>
+    <h1>{{ title }}</h1>
+    <p class="muted">
+        Project: {{ project.name }} | Sprint: {{ sprint.name }}
+    </p>
+</section>
+
+<form class="form-panel" method="post" action="{{ form_action }}">
+    <label for="title">Title</label>
+    <input
+        id="title"
+        name="title"
+        type="text"
+        value="{{ task.title if task else '' }}"
+        required
+    >
+    {% if errors.title %}
+        <p class="field-error">{{ errors.title }}</p>
+    {% endif %}
+
+    <label for="description">Description</label>
+    <textarea id="description" name="description" rows="4">{{ task.description if task else '' }}</textarea>
+
+    <label for="status">Status</label>
+    <select id="status" name="status">
+        {% for status in statuses %}
+            <option value="{{ status }}"
+                {% if task and task.status == status %}selected{% endif %}
+            >
+                {{ status }}
+            </option>
+        {% endfor %}
+    </select>
+    {% if errors.status %}
+        <p class="field-error">{{ errors.status }}</p>
+    {% endif %}
+
+    <label for="priority">Priority</label>
+    <select id="priority" name="priority">
+        {% for priority in priorities %}
+            <option value="{{ priority }}"
+                {% if task and task.priority == priority %}selected{% endif %}
+            >
+                {{ priority }}
+            </option>
+        {% endfor %}
+    </select>
+    {% if errors.priority %}
+        <p class="field-error">{{ errors.priority }}</p>
+    {% endif %}
+
+    <label for="assignee">Assignee</label>
+    <input
+        id="assignee"
+        name="assignee"
+        type="text"
+        value="{{ task.assignee if task else '' }}"
+    >
+
+    <label for="due_date">Due Date</label>
+    <input
+        id="due_date"
+        name="due_date"
+        type="date"
+        value="{{ task.due_date if task else '' }}"
+    >
+    {% if errors.due_date %}
+        <p class="field-error">{{ errors.due_date }}</p>
+    {% endif %}
+
+    <div class="actions">
+        <button class="button" type="submit">Save Task</button>
+        <a class="button secondary" href="{{ url_for('main.sprint_detail', sprint_id=sprint.id) }}">Cancel</a>
+    </div>
+</form>
+{% endblock %}

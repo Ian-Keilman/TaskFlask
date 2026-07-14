@@ -3,55 +3,69 @@
 {% block title %}Projects - TaskFlask{% endblock %}
 
 {% block content %}
-<section class="page-header row-header">
+<section class="projects-page-header">
     <div>
-        <p class="eyebrow">Project list</p>
+        <p class="eyebrow">Project workspace</p>
         <h1>Projects</h1>
+        <p class="muted">Manage active work, review progress, and open your team’s sprint boards.</p>
     </div>
-    <a class="button" href="{{ url_for('main.new_project') }}">New Project</a>
+    <div class="projects-header-actions">
+        <span class="board-total">{{ projects|length }} project{% if projects|length != 1 %}s{% endif %}</span>
+        <a class="button" href="{{ url_for('main.new_project') }}">+ New Project</a>
+    </div>
 </section>
 
 {% if projects %}
-    <div class="item-list">
+    <section class="projects-list" aria-label="Projects">
         {% for project in projects %}
-            <article class="card">
-                <div class="row-header">
-                    <div>
-                        <h2>
-                            <a href="{{ url_for('main.project_detail', project_id=project.id) }}">
-                                {{ project.name }}
-                            </a>
-                        </h2>
+            <article class="project-list-card card">
+                <div class="project-list-icon" aria-hidden="true">
+                    <span class="project-folder-icon"></span>
+                </div>
 
-                        <p>{{ project.description or "No description yet." }}</p>
-
-                        <div class="project-status-summary">
-                            <span class="status-pill status-active">
-                                {{ project.active_sprint_count or 0 }} Active
-                            </span>
-
-                            <span class="status-pill status-completed">
-                                {{ project.completed_sprint_count or 0 }} Completed
-                            </span>
+                <div class="project-list-content">
+                    <div class="project-list-title-row">
+                        <div>
+                            <h2><a href="{{ url_for('main.project_detail', project_id=project.id) }}">{{ project.name }}</a></h2>
+                            <p>{{ project.description or "No project description yet." }}</p>
                         </div>
-
-                        <p class="muted">Updated {{ project.updated_at }}</p>
+                        <div class="project-list-actions">
+                            <a class="button secondary small" href="{{ url_for('main.project_detail', project_id=project.id) }}">Open Project →</a>
+                            <a class="task-action-link" href="{{ url_for('main.edit_project', project_id=project.id) }}">Edit</a>
+                            <form method="post" action="{{ url_for('main.delete_project', project_id=project.id) }}" data-confirm="Delete this project and all of its sprints and tasks?">
+                                <button class="task-action-link danger-text" type="submit">Delete</button>
+                            </form>
+                        </div>
                     </div>
 
-                    <div class="actions compact">
-                        <a class="button secondary" href="{{ url_for('main.edit_project', project_id=project.id) }}">
-                            Edit
-                        </a>
+                    <div class="project-list-meta">
+                        <span class="status-pill status-active">● {{ project.active_sprint_count or 0 }} Active</span>
+                        <span class="status-pill status-completed">{{ project.completed_sprint_count or 0 }} Completed</span>
+                        <span class="project-updated">Updated {{ project.updated_at|friendly_datetime }}</span>
+                    </div>
 
-                        <form method="post" action="{{ url_for('main.delete_project', project_id=project.id) }}" data-confirm="Delete this project?">
-                            <button class="button danger" type="submit">Delete</button>
-                        </form>
+                    <div class="project-list-progress">
+                        <div class="progress-heading">
+                            <strong>Task progress</strong>
+                            {% if project.total %}
+                                <span>{{ project.done }} of {{ project.total }} tasks done</span>
+                            {% else %}
+                                <span>No tasks yet</span>
+                            {% endif %}
+                        </div>
+                        <div class="progress-bar progress-bar-large" aria-label="{{ project.percent_complete }} percent complete">
+                            <span style="width: {{ project.percent_complete }}%"></span>
+                        </div>
                     </div>
                 </div>
             </article>
         {% endfor %}
-    </div>
+    </section>
 {% else %}
-    <p class="empty-state">No projects yet. Create one when your team is ready.</p>
+    <section class="empty-panel projects-empty-state">
+        <div class="project-list-icon" aria-hidden="true"><span class="project-folder-icon"></span></div>
+        <h2>No projects yet</h2>
+        <p>Create your first project to start organizing sprints and tasks.</p>
+    </section>
 {% endif %}
 {% endblock %}

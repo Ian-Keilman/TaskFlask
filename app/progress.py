@@ -9,7 +9,7 @@ def _value(row, key):
 
 
 def calculate_progress(tasks):
-    """Return simple sprint progress counts for a list of task rows."""
+    """Return progress counts for a collection of task rows."""
     counts = {status: 0 for status in VALID_STATUSES}
 
     for task in tasks:
@@ -26,7 +26,7 @@ def calculate_progress(tasks):
 
 
 def progress_from_counts(total, to_do, in_progress, done):
-    """Build the progress shape used by projects and sprints."""
+    """Build the progress shape used by project and sprint views."""
     total = int(total or 0)
     to_do = int(to_do or 0)
     in_progress = int(in_progress or 0)
@@ -42,7 +42,7 @@ def progress_from_counts(total, to_do, in_progress, done):
 
 
 def with_progress(row):
-    """Add display-ready progress fields to a query row that has task counts."""
+    """Add display-ready progress fields to a query row with task counts."""
     item = dict(row)
     item.update(
         progress_from_counts(
