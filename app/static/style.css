@@ -401,6 +401,12 @@ textarea {
     font-size: 0.9rem;
 }
 
+.field-help {
+    margin: var(--space-1) 0 0;
+    color: var(--muted);
+    font-size: var(--text-sm);
+}
+
 /* Project and sprint display */
 
 .project-hero {
@@ -867,6 +873,22 @@ textarea {
     text-decoration: none;
 }
 
+.detail-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-bottom: var(--space-4);
+}
+
+.detail-navigation .breadcrumb {
+    margin-bottom: 0;
+}
+
+.detail-back-button {
+    flex-shrink: 0;
+}
+
 .sprint-workspace-header {
     padding: var(--space-8);
     margin-bottom: var(--space-5);
@@ -1206,6 +1228,24 @@ textarea {
     justify-content: space-between;
     align-items: center;
     gap: var(--space-3);
+}
+
+.task-card-labels {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.estimate-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-pill);
+    background: var(--color-info-50);
+    color: var(--color-info-700);
+    font-size: var(--text-xs);
+    font-weight: 800;
 }
 
 .task-card h3 {
@@ -1846,6 +1886,11 @@ textarea {
 @media (max-width: 560px) {
     .container {
         padding: 18px 14px 36px;
+    }
+
+    .detail-navigation {
+        align-items: flex-start;
+        flex-direction: column;
     }
 
     .dashboard-hero {
