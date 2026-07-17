@@ -55,6 +55,21 @@
         <p class="field-error">{{ errors.priority }}</p>
     {% endif %}
 
+    <label for="story_points">Story Points</label>
+    <select id="story_points" name="story_points" required>
+        {% for points in story_points_options %}
+            <option value="{{ points }}"
+                {% if task and task.story_points == points %}selected{% endif %}
+            >
+                {{ points }} point{% if points != 1 %}s{% endif %}
+            </option>
+        {% endfor %}
+    </select>
+    <p class="field-help">Estimate complexity using the Fibonacci sequence.</p>
+    {% if errors.story_points %}
+        <p class="field-error">{{ errors.story_points }}</p>
+    {% endif %}
+
     <label for="assignee">Assignee</label>
     <input
         id="assignee"
