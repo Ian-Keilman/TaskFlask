@@ -1,9 +1,11 @@
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 VALID_SPRINT_STATUSES = ["Active", "Completed"]
 VALID_STATUSES = ["To Do", "In Progress", "Done"]
 VALID_PRIORITIES = ["Low", "Medium", "High"]
 VALID_STORY_POINTS = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89]
+PACIFIC_TIME = ZoneInfo("America/Los_Angeles")
 
 
 def _text(form_data, field_name):
@@ -71,6 +73,8 @@ def validate_task(form_data):
         "priority": _text(form_data, "priority") or "Medium",
         "story_points": None,
         "assignee": _text(form_data, "assignee"),
+        "added_on": _text(form_data, "added_on")
+        or datetime.now(PACIFIC_TIME).date().isoformat(),
         "due_date": _text(form_data, "due_date"),
     }
 
@@ -98,6 +102,9 @@ def validate_task(form_data):
 
     if not _looks_like_date(data["due_date"]):
         errors["due_date"] = "Due date must use YYYY-MM-DD."
+
+    if not _looks_like_date(data["added_on"]):
+        errors["added_on"] = "Added on date must use YYYY-MM-DD."
 
     return data, errors
 
