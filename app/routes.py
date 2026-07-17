@@ -278,6 +278,7 @@ def new_task(sprint_id):
         "description": "",
         "status": "To Do",
         "priority": "Medium",
+        "story_points": 1,
         "assignee": "",
         "due_date": "",
     }
@@ -293,6 +294,7 @@ def new_task(sprint_id):
                 task["description"],
                 task["status"],
                 task["priority"],
+                task["story_points"],
                 task["assignee"],
                 task["due_date"],
             )
@@ -310,6 +312,7 @@ def new_task(sprint_id):
         errors=errors,
         form_action=url_for("main.new_task", sprint_id=sprint_id),
         priorities=forms.VALID_PRIORITIES,
+        story_points_options=forms.VALID_STORY_POINTS,
         statuses=forms.VALID_STATUSES,
     )
 
@@ -331,6 +334,7 @@ def edit_task(task_id):
                 data["description"],
                 data["status"],
                 data["priority"],
+                data["story_points"],
                 data["assignee"],
                 data["due_date"],
             )
@@ -349,6 +353,7 @@ def edit_task(task_id):
         errors=errors,
         form_action=url_for("main.edit_task", task_id=task_id),
         priorities=forms.VALID_PRIORITIES,
+        story_points_options=forms.VALID_STORY_POINTS,
         statuses=forms.VALID_STATUSES,
     )
 
@@ -378,3 +383,4 @@ def delete_task(task_id):
 
     flash("Task deleted.")
     return redirect(url_for("main.sprint_detail", sprint_id=sprint["id"]))
+    
