@@ -56,7 +56,8 @@ def make_project(app, client):
         return row["id"]
 
     return _make_project
-    
+
+
 @pytest.fixture
 def make_sprint(app, client, make_project):
     def _make_sprint(
@@ -97,4 +98,49 @@ def make_sprint(app, client, make_project):
         return row["id"]
 
     return _make_sprint
-    
+
+
+@pytest.fixture
+def make_task(app, client, make_sprint):
+    def _make_task(
+        sprint_id=None,
+        title="Task 1",
+        description="A task for the sprint.",
+        status="To Do",
+        priority="Medium",
+        story_points=1,
+        assignee="",
+        due_date="",
+    ):
+        if sprint_id is None:
+            sprint_id = make_sprint()
+
+        response = client.post(
+            f"/sprints/{sprint_id}/tasks/new",
+            data={
+                "title": title,
+                "description": description,
+                "status": status,
+                "priority": priority,
+                "story_points": str(story_points),
+                "assignee": assignee,
+                "due_date": due_date,
+            },
+            follow_redirects=True,
+        )
+        assert response.status_code == 200
+
+        with app.app_context():
+            row = get_db().execute(
+                """
+                SELECT id FROM tasks
+                WHERE sprint_id = ? AND title = ?
+                ORDER BY id DESC
+                """,
+                (sprint_id, title),
+            ).fetchone()
+
+        assert row is not None
+        return row["id"]
+
+    return _make_task
