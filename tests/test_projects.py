@@ -69,10 +69,11 @@ def test_migration_expands_existing_story_point_constraint(app, make_sprint):
         )
         db.commit()
         task = db.execute(
-            "SELECT story_points FROM tasks WHERE title = 'Existing task'"
+            "SELECT story_points, added_on FROM tasks WHERE title = 'Existing task'"
         ).fetchone()
 
     assert task["story_points"] == 55
+    assert task["added_on"] == "2026-07-15"
 
 
 def test_design_system_reference_page(client):
@@ -161,6 +162,37 @@ def test_dashboard_and_project_list_show_project_progress(client, make_project, 
         assert response.status_code == 200
         assert b"50%" in response.data
         assert b"1 of 2 tasks done" in response.data
+
+
+def test_project_list_expands_task_previews_with_sprint_tags(
+    client, make_project, make_sprint, make_task
+):
+    project_id = make_project(name="Preview Tasks Project")
+    first_sprint = make_sprint(project_id=project_id, name="Design Sprint")
+    second_sprint = make_sprint(project_id=project_id, name="Build Sprint")
+    make_task(
+        sprint_id=first_sprint,
+        title="Review wireframes",
+        status="In Progress",
+        story_points=5,
+    )
+    make_task(
+        sprint_id=second_sprint,
+        title="Create endpoint",
+        status="To Do",
+        story_points=8,
+    )
+
+    response = client.get("/projects")
+
+    assert response.status_code == 200
+    assert b"View tasks" in response.data
+    assert b"Review wireframes" in response.data
+    assert b"Design Sprint" in response.data
+    assert b"Create endpoint" in response.data
+    assert b"Build Sprint" in response.data
+    assert b"5 SP" in response.data
+    assert b"8 SP" in response.data
 
 
 def test_dashboard_project_sorting(client, make_project):

@@ -31,6 +31,7 @@ def test_task_crud_and_status_flow(client, app, make_sprint):
             "priority": "High",
             "story_points": "5",
             "assignee": "Alex",
+            "added_on": "2026-07-10",
             "due_date": "2026-07-20",
         },
         follow_redirects=True,
@@ -53,12 +54,14 @@ def test_task_crud_and_status_flow(client, app, make_sprint):
             "priority": "Medium",
             "story_points": "8",
             "assignee": "Jordan",
+            "added_on": "2026-07-11",
             "due_date": "2026-07-21",
         },
         follow_redirects=True,
     )
     assert b"Updated task" in edit_response.data
     assert b"Jordan" in edit_response.data
+    assert b"Added 2026-07-11" in edit_response.data
 
     status_response = client.post(
         f"/tasks/{task_id}/status",
@@ -103,6 +106,12 @@ def test_story_points_are_required_and_use_fibonacci_values(
         data={**task_data, "story_points": "4"},
     )
     assert b"Choose a Fibonacci estimate." in invalid_response.data
+
+    invalid_date_response = client.post(
+        f"/sprints/{sprint_id}/tasks/new",
+        data={**task_data, "story_points": "5", "added_on": "not-a-date"},
+    )
+    assert b"Added on date must use YYYY-MM-DD." in invalid_date_response.data
 
     valid_response = client.post(
         f"/sprints/{sprint_id}/tasks/new",
