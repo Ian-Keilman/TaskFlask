@@ -3,11 +3,16 @@
 {% block title %}{{ project.name }} - TaskFlask{% endblock %}
 
 {% block content %}
-<nav class="breadcrumb" aria-label="Breadcrumb">
-    <a href="{{ url_for('main.projects') }}">Projects</a>
-    <span aria-hidden="true">/</span>
-    <span aria-current="page">{{ project.name }}</span>
-</nav>
+<div class="detail-navigation">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="{{ url_for('main.projects') }}">Projects</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">{{ project.name }}</span>
+    </nav>
+    <a class="button secondary small detail-back-button" href="{{ url_for('main.projects') }}">
+        <span aria-hidden="true">←</span> Back to Projects
+    </a>
+</div>
 
 <section class="project-overview card">
     <div class="project-overview-icon" aria-hidden="true">

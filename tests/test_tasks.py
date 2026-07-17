@@ -29,6 +29,7 @@ def test_task_crud_and_status_flow(client, app, make_sprint):
             "description": "Original description",
             "status": "To Do",
             "priority": "High",
+            "story_points": "5",
             "assignee": "Alex",
             "due_date": "2026-07-20",
         },
@@ -50,6 +51,7 @@ def test_task_crud_and_status_flow(client, app, make_sprint):
             "description": "Updated description",
             "status": "In Progress",
             "priority": "Medium",
+            "story_points": "8",
             "assignee": "Jordan",
             "due_date": "2026-07-21",
         },
@@ -76,3 +78,43 @@ def test_task_crud_and_status_flow(client, app, make_sprint):
     )
     assert b"Task deleted." in delete_response.data
     assert b"Updated task" not in delete_response.data
+
+
+def test_story_points_are_required_and_use_fibonacci_values(
+    client, app, make_sprint
+):
+    sprint_id = make_sprint()
+    task_data = {
+        "title": "Estimate me",
+        "description": "Story point validation",
+        "status": "To Do",
+        "priority": "Medium",
+        "assignee": "",
+        "due_date": "",
+    }
+
+    missing_response = client.post(
+        f"/sprints/{sprint_id}/tasks/new", data=task_data
+    )
+    assert b"Story points are required." in missing_response.data
+
+    invalid_response = client.post(
+        f"/sprints/{sprint_id}/tasks/new",
+        data={**task_data, "story_points": "4"},
+    )
+    assert b"Choose a Fibonacci estimate." in invalid_response.data
+
+    valid_response = client.post(
+        f"/sprints/{sprint_id}/tasks/new",
+        data={**task_data, "story_points": "55"},
+        follow_redirects=True,
+    )
+    assert valid_response.status_code == 200
+    assert b"55 SP" in valid_response.data
+
+    with app.app_context():
+        task = get_db().execute(
+            "SELECT story_points FROM tasks WHERE title = ?", ("Estimate me",)
+        ).fetchone()
+
+    assert task["story_points"] == 55

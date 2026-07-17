@@ -1,8 +1,22 @@
 from pathlib import Path
+from datetime import datetime
 
 from flask import Flask
 
-from .db import close_db, init_db_command
+from .db import close_db, init_db_command, migrate_db_command
+
+
+def format_datetime(value):
+    """Format an ISO timestamp for concise, human-readable display."""
+    if not value:
+        return "Unknown"
+
+    try:
+        parsed = datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return value
+
+    return parsed.strftime("%b %d, %Y at %I:%M %p").replace(" 0", " ")
 
 
 def create_app(test_config=None):
@@ -21,8 +35,10 @@ def create_app(test_config=None):
     from . import routes
 
     app.register_blueprint(routes.bp)
+    app.add_template_filter(format_datetime, "friendly_datetime")
 
     app.teardown_appcontext(close_db)
     app.cli.add_command(init_db_command)
+    app.cli.add_command(migrate_db_command)
 
     return app

@@ -20,6 +20,15 @@ def test_creating_a_sprint(client, make_project):
     assert b"Sprint 1" in response.data
 
 
+def test_sprint_detail_has_back_navigation(client, make_sprint):
+    sprint_id = make_sprint()
+
+    response = client.get(f"/sprints/{sprint_id}")
+
+    assert response.status_code == 200
+    assert b"Back to Project" in response.data
+
+
 def test_editing_a_sprint(client, make_sprint):
     sprint_id = make_sprint()
 
