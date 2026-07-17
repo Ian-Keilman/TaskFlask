@@ -49,7 +49,9 @@ def migrate_db():
             priority TEXT NOT NULL DEFAULT 'Medium',
             story_points INTEGER NOT NULL DEFAULT 1 CHECK (story_points IN (1, 2, 3, 5, 8, 13, 21, 34, 55, 89)),
             assignee TEXT,
+            added_on TEXT NOT NULL,
             due_date TEXT,
+            completed_at TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             FOREIGN KEY (sprint_id) REFERENCES sprints (id) ON DELETE CASCADE
@@ -79,6 +81,16 @@ def migrate_db():
             """
         )
 
+    if "completed_at" not in task_columns:
+        db.execute("ALTER TABLE tasks ADD COLUMN completed_at TEXT")
+        db.execute(
+            "UPDATE tasks SET completed_at = updated_at WHERE status = 'Done'"
+        )
+
+    if "added_on" not in task_columns:
+        db.execute("ALTER TABLE tasks ADD COLUMN added_on TEXT")
+        db.execute("UPDATE tasks SET added_on = SUBSTR(created_at, 1, 10)")
+
     tasks_schema = db.execute(
         "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'tasks'"
     ).fetchone()["sql"]
@@ -97,7 +109,9 @@ def migrate_db():
                 story_points INTEGER NOT NULL DEFAULT 1
                     CHECK (story_points IN (1, 2, 3, 5, 8, 13, 21, 34, 55, 89)),
                 assignee TEXT,
+                added_on TEXT NOT NULL,
                 due_date TEXT,
+                completed_at TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 FOREIGN KEY (sprint_id) REFERENCES sprints (id) ON DELETE CASCADE
@@ -105,11 +119,11 @@ def migrate_db():
 
             INSERT INTO tasks (
                 id, sprint_id, title, description, status, priority,
-                story_points, assignee, due_date, created_at, updated_at
+                story_points, assignee, added_on, due_date, completed_at, created_at, updated_at
             )
             SELECT
                 id, sprint_id, title, description, status, priority,
-                story_points, assignee, due_date, created_at, updated_at
+                story_points, assignee, added_on, due_date, completed_at, created_at, updated_at
             FROM tasks_old_story_points;
 
             DROP TABLE tasks_old_story_points;
