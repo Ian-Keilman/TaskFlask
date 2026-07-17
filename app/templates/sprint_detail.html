@@ -166,6 +166,7 @@
                             {% else %}
                                 <span class="muted">Unassigned</span>
                             {% endif %}
+                            <span>Added {{ task.added_on }}</span>
                             {% if task.due_date %}<span>Due {{ task.due_date }}</span>{% endif %}
                         </div>
 
