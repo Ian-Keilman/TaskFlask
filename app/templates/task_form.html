@@ -78,6 +78,19 @@
         value="{{ task.assignee if task else '' }}"
     >
 
+    <label for="added_on">Added On</label>
+    <input
+        id="added_on"
+        name="added_on"
+        type="date"
+        value="{{ task.added_on if task else '' }}"
+        required
+    >
+    <p class="field-help">Choose when this task’s story points should enter the burnup chart.</p>
+    {% if errors.added_on %}
+        <p class="field-error">{{ errors.added_on }}</p>
+    {% endif %}
+
     <label for="due_date">Due Date</label>
     <input
         id="due_date"
