@@ -303,14 +303,23 @@ def get_task(task_id):
 
 
 # Create a new task inside a sprint.
-def create_task(sprint_id, title, description, status, priority, assignee, due_date):
+def create_task(
+    sprint_id,
+    title,
+    description,
+    status,
+    priority,
+    story_points,
+    assignee,
+    due_date,
+):
     timestamp = _now()
 
     cursor = get_db().execute(
         """
         INSERT INTO tasks
-            (sprint_id, title, description, status, priority, assignee, due_date, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (sprint_id, title, description, status, priority, story_points, assignee, due_date, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             sprint_id,
@@ -318,6 +327,7 @@ def create_task(sprint_id, title, description, status, priority, assignee, due_d
             description,
             status,
             priority,
+            story_points,
             assignee,
             due_date,
             timestamp,
@@ -330,7 +340,16 @@ def create_task(sprint_id, title, description, status, priority, assignee, due_d
 
 
 # Update an existing task.
-def update_task(task_id, title, description, status, priority, assignee, due_date):
+def update_task(
+    task_id,
+    title,
+    description,
+    status,
+    priority,
+    story_points,
+    assignee,
+    due_date,
+):
     get_db().execute(
         """
         UPDATE tasks
@@ -338,6 +357,7 @@ def update_task(task_id, title, description, status, priority, assignee, due_dat
             description = ?,
             status = ?,
             priority = ?,
+            story_points = ?,
             assignee = ?,
             due_date = ?,
             updated_at = ?
@@ -348,6 +368,7 @@ def update_task(task_id, title, description, status, priority, assignee, due_dat
             description,
             status,
             priority,
+            story_points,
             assignee,
             due_date,
             _now(),
@@ -370,32 +391,3 @@ def update_task_status(task_id, status):
     )
 
     get_db().commit()
-
-
-# Delete a task.
-def delete_task(task_id):
-    get_db().execute(
-        """
-        DELETE FROM tasks
-        WHERE id = ?
-        """,
-        (task_id,),
-    )
-
-    get_db().commit()
-
-
-# Return assignees for the filter dropdown.
-def list_assignees(sprint_id):
-    rows = get_db().execute(
-        """
-        SELECT DISTINCT assignee
-        FROM tasks
-        WHERE sprint_id = ?
-            AND assignee IS NOT NULL
-            AND TRIM(assignee) != ''
-        ORDER BY assignee
-        """,
-        (sprint_id,),
-    ).fetchall()
-    return [row["assignee"] for row in rows]
