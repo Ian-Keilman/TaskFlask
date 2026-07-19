@@ -589,6 +589,11 @@ textarea {
     height: auto;
 }
 
+.burnup-plot svg[hidden],
+.burnup-legend[hidden] {
+    display: none;
+}
+
 .burnup-grid-line {
     stroke: var(--color-neutral-200);
     stroke-width: 1;
