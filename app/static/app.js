@@ -81,6 +81,7 @@ if (burnupChart) {
         const select = burnupChart.querySelector("[data-burnup-select]");
         const svg = burnupChart.querySelector("[data-burnup-svg]");
         const emptyState = burnupChart.querySelector("[data-burnup-empty]");
+        const legend = burnupChart.querySelector(".burnup-legend");
         const completedValue = burnupChart.querySelector("[data-burnup-completed]");
         const totalValue = burnupChart.querySelector("[data-burnup-total]");
         const percentValue = burnupChart.querySelector("[data-burnup-percent]");
@@ -111,15 +112,15 @@ if (burnupChart) {
             svg.setAttribute("aria-label", `${sprint.name} burnup chart`);
             description.textContent = `${sprint.name}: ${sprint.completed_points} of ${sprint.total_points} story points completed.`;
 
-            if (!sprint.total_points) {
-                svg.hidden = true;
-                emptyState.hidden = false;
+            svg.replaceChildren();
+            const hasChartData = sprint.total_points > 0 && sprint.points.length > 0;
+            svg.toggleAttribute("hidden", !hasChartData);
+            emptyState.hidden = hasChartData;
+            legend.hidden = !hasChartData;
+
+            if (!hasChartData) {
                 return;
             }
-
-            svg.hidden = false;
-            emptyState.hidden = true;
-            svg.replaceChildren();
 
             const width = 800;
             const height = 300;
