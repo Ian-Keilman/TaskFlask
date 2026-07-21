@@ -1,9 +1,13 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
 from . import forms, models
 
 bp = Blueprint("main", __name__)
 DASHBOARD_PROJECT_LIMIT = 3
+PACIFIC_TIME = ZoneInfo("America/Los_Angeles")
 
 
 def _require_project(project_id):
@@ -55,7 +59,14 @@ def index():
 @bp.route("/projects")
 def projects():
     projects = models.list_projects_with_sprint_counts()
-    return render_template("projects.html", projects=projects)
+    project_task_previews = models.list_project_task_previews(
+        project["id"] for project in projects
+    )
+    return render_template(
+        "projects.html",
+        projects=projects,
+        project_task_previews=project_task_previews,
+    )
 
 
 @bp.route("/design-system")
@@ -94,11 +105,15 @@ def new_project():
 def project_detail(project_id):
     project = _require_project(project_id)
     sprints = models.list_sprints(project_id)
+    burnup_sprints = models.get_project_burnup(project_id)
+    for sprint in burnup_sprints:
+        sprint["board_url"] = url_for("main.sprint_detail", sprint_id=sprint["id"])
 
     return render_template(
         "project_detail.html",
         project=project,
         sprints=sprints,
+        burnup_sprints=burnup_sprints,
     )
 
 
@@ -278,7 +293,9 @@ def new_task(sprint_id):
         "description": "",
         "status": "To Do",
         "priority": "Medium",
+        "story_points": 1,
         "assignee": "",
+        "added_on": datetime.now(PACIFIC_TIME).date().isoformat(),
         "due_date": "",
     }
     errors = {}
@@ -293,7 +310,9 @@ def new_task(sprint_id):
                 task["description"],
                 task["status"],
                 task["priority"],
+                task["story_points"],
                 task["assignee"],
+                task["added_on"],
                 task["due_date"],
             )
             flash("Task created.")
@@ -310,6 +329,7 @@ def new_task(sprint_id):
         errors=errors,
         form_action=url_for("main.new_task", sprint_id=sprint_id),
         priorities=forms.VALID_PRIORITIES,
+        story_points_options=forms.VALID_STORY_POINTS,
         statuses=forms.VALID_STATUSES,
     )
 
@@ -331,7 +351,9 @@ def edit_task(task_id):
                 data["description"],
                 data["status"],
                 data["priority"],
+                data["story_points"],
                 data["assignee"],
+                data["added_on"],
                 data["due_date"],
             )
             flash("Task updated.")
@@ -349,6 +371,7 @@ def edit_task(task_id):
         errors=errors,
         form_action=url_for("main.edit_task", task_id=task_id),
         priorities=forms.VALID_PRIORITIES,
+        story_points_options=forms.VALID_STORY_POINTS,
         statuses=forms.VALID_STATUSES,
     )
 
@@ -378,3 +401,4 @@ def delete_task(task_id):
 
     flash("Task deleted.")
     return redirect(url_for("main.sprint_detail", sprint_id=sprint["id"]))
+    

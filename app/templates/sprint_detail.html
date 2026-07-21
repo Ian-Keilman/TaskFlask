@@ -3,13 +3,18 @@
 {% block title %}{{ sprint.name }} - TaskFlask{% endblock %}
 
 {% block content %}
-<nav class="breadcrumb" aria-label="Breadcrumb">
-    <a href="{{ url_for('main.projects') }}">Projects</a>
-    <span aria-hidden="true">/</span>
-    <a href="{{ url_for('main.project_detail', project_id=project.id) }}">{{ project.name }}</a>
-    <span aria-hidden="true">/</span>
-    <span aria-current="page">{{ sprint.name }}</span>
-</nav>
+<div class="detail-navigation">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="{{ url_for('main.projects') }}">Projects</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ url_for('main.project_detail', project_id=project.id) }}">{{ project.name }}</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">{{ sprint.name }}</span>
+    </nav>
+    <a class="button secondary small detail-back-button" href="{{ url_for('main.project_detail', project_id=project.id) }}">
+        <span aria-hidden="true">←</span> Back to Project
+    </a>
+</div>
 
 <section class="sprint-workspace-header card">
     <div class="sprint-workspace-title">
@@ -145,7 +150,10 @@
                 {% for task in grouped_tasks[status] %}
                     <article class="task-card" draggable="true" data-task-id="{{ task.id }}" data-status-url="{{ url_for('main.change_task_status', task_id=task.id) }}">
                         <div class="task-card-topline">
-                            <span class="priority-pill priority-{{ task.priority|lower }}">{{ task.priority }}</span>
+                            <div class="task-card-labels">
+                                <span class="priority-pill priority-{{ task.priority|lower }}">{{ task.priority }}</span>
+                                <span class="estimate-pill">{{ task.story_points }} SP</span>
+                            </div>
                             <span class="drag-handle" aria-hidden="true" title="Drag to move">⋮⋮</span>
                         </div>
 
@@ -158,6 +166,7 @@
                             {% else %}
                                 <span class="muted">Unassigned</span>
                             {% endif %}
+                            <span>Added {{ task.added_on }}</span>
                             {% if task.due_date %}<span>Due {{ task.due_date }}</span>{% endif %}
                         </div>
 

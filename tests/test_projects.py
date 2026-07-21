@@ -1,5 +1,5 @@
 from app import models
-from app.db import get_db
+from app.db import get_db, migrate_db
 
 
 def test_app_starts_successfully(client):
@@ -23,6 +23,57 @@ def test_database_commands_are_registered_and_migration_runs(app):
 
     assert result.exit_code == 0
     assert "Migrated the TaskFlask database." in result.output
+
+
+def test_migration_expands_existing_story_point_constraint(app, make_sprint):
+    sprint_id = make_sprint()
+
+    with app.app_context():
+        db = get_db()
+        db.executescript(
+            """
+            DROP TABLE tasks;
+            CREATE TABLE tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sprint_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                status TEXT NOT NULL DEFAULT 'To Do',
+                priority TEXT NOT NULL DEFAULT 'Medium',
+                story_points INTEGER NOT NULL DEFAULT 1
+                    CHECK (story_points IN (1, 2, 3, 5, 8, 13)),
+                assignee TEXT,
+                due_date TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (sprint_id) REFERENCES sprints (id) ON DELETE CASCADE
+            );
+            """
+        )
+        db.execute(
+            """
+            INSERT INTO tasks (
+                sprint_id, title, status, priority, story_points,
+                created_at, updated_at
+            )
+            VALUES (?, 'Existing task', 'To Do', 'Medium', 13, ?, ?)
+            """,
+            (sprint_id, "2026-07-15T00:00:00+00:00", "2026-07-15T00:00:00+00:00"),
+        )
+        db.commit()
+
+        migrate_db()
+
+        db.execute(
+            "UPDATE tasks SET story_points = 55 WHERE title = 'Existing task'"
+        )
+        db.commit()
+        task = db.execute(
+            "SELECT story_points, added_on FROM tasks WHERE title = 'Existing task'"
+        ).fetchone()
+
+    assert task["story_points"] == 55
+    assert task["added_on"] == "2026-07-15"
 
 
 def test_design_system_reference_page(client):
@@ -56,6 +107,15 @@ def test_creating_a_project(client):
     assert response.status_code == 200
     assert b"Project created." in response.data
     assert b"Capstone Planner" in response.data
+
+
+def test_project_detail_has_back_navigation(client, make_project):
+    project_id = make_project()
+
+    response = client.get(f"/projects/{project_id}")
+
+    assert response.status_code == 200
+    assert b"Back to Projects" in response.data
 
 
 def test_editing_a_project(client, make_project):
@@ -102,6 +162,37 @@ def test_dashboard_and_project_list_show_project_progress(client, make_project, 
         assert response.status_code == 200
         assert b"50%" in response.data
         assert b"1 of 2 tasks done" in response.data
+
+
+def test_project_list_expands_task_previews_with_sprint_tags(
+    client, make_project, make_sprint, make_task
+):
+    project_id = make_project(name="Preview Tasks Project")
+    first_sprint = make_sprint(project_id=project_id, name="Design Sprint")
+    second_sprint = make_sprint(project_id=project_id, name="Build Sprint")
+    make_task(
+        sprint_id=first_sprint,
+        title="Review wireframes",
+        status="In Progress",
+        story_points=5,
+    )
+    make_task(
+        sprint_id=second_sprint,
+        title="Create endpoint",
+        status="To Do",
+        story_points=8,
+    )
+
+    response = client.get("/projects")
+
+    assert response.status_code == 200
+    assert b"View tasks" in response.data
+    assert b"Review wireframes" in response.data
+    assert b"Design Sprint" in response.data
+    assert b"Create endpoint" in response.data
+    assert b"Build Sprint" in response.data
+    assert b"5 SP" in response.data
+    assert b"8 SP" in response.data
 
 
 def test_dashboard_project_sorting(client, make_project):

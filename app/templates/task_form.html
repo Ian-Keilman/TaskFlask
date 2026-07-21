@@ -55,6 +55,21 @@
         <p class="field-error">{{ errors.priority }}</p>
     {% endif %}
 
+    <label for="story_points">Story Points</label>
+    <select id="story_points" name="story_points" required>
+        {% for points in story_points_options %}
+            <option value="{{ points }}"
+                {% if task and task.story_points == points %}selected{% endif %}
+            >
+                {{ points }} point{% if points != 1 %}s{% endif %}
+            </option>
+        {% endfor %}
+    </select>
+    <p class="field-help">Estimate complexity using the Fibonacci sequence.</p>
+    {% if errors.story_points %}
+        <p class="field-error">{{ errors.story_points }}</p>
+    {% endif %}
+
     <label for="assignee">Assignee</label>
     <input
         id="assignee"
@@ -62,6 +77,19 @@
         type="text"
         value="{{ task.assignee if task else '' }}"
     >
+
+    <label for="added_on">Added On</label>
+    <input
+        id="added_on"
+        name="added_on"
+        type="date"
+        value="{{ task.added_on if task else '' }}"
+        required
+    >
+    <p class="field-help">Choose when this task’s story points should enter the burnup chart.</p>
+    {% if errors.added_on %}
+        <p class="field-error">{{ errors.added_on }}</p>
+    {% endif %}
 
     <label for="due_date">Due Date</label>
     <input

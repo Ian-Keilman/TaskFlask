@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from .burnup import build_burnup_series
 from .db import get_db
 from .progress import progress_from_counts, with_progress
 
@@ -93,6 +94,38 @@ def list_sprints(project_id):
         (project_id,),
     ).fetchall()
     return [with_progress(row) for row in rows]
+
+
+def get_project_burnup(project_id):
+    """Return chart-ready story-point progress for every project sprint."""
+    sprints = get_db().execute(
+        """
+        SELECT *
+        FROM sprints
+        WHERE project_id = ?
+        ORDER BY CASE status WHEN 'Active' THEN 0 ELSE 1 END, id DESC
+        """,
+        (project_id,),
+    ).fetchall()
+    tasks = get_db().execute(
+        """
+        SELECT tasks.*
+        FROM tasks
+        JOIN sprints ON sprints.id = tasks.sprint_id
+        WHERE sprints.project_id = ?
+        ORDER BY tasks.created_at, tasks.id
+        """,
+        (project_id,),
+    ).fetchall()
+
+    tasks_by_sprint = {sprint["id"]: [] for sprint in sprints}
+    for task in tasks:
+        tasks_by_sprint[task["sprint_id"]].append(task)
+
+    return [
+        build_burnup_series(sprint, tasks_by_sprint[sprint["id"]])
+        for sprint in sprints
+    ]
 
 
 # Return one sprint by id.
@@ -228,6 +261,52 @@ def list_projects_with_sprint_counts(sort="recent"):
     return projects
 
 
+def list_project_task_previews(project_ids, limit=5):
+    """Return a small, priority-ordered task preview for each project."""
+    project_ids = list(project_ids)
+    if not project_ids:
+        return {}
+
+    placeholders = ", ".join("?" for _ in project_ids)
+    rows = get_db().execute(
+        f"""
+        SELECT
+            tasks.id,
+            tasks.title,
+            tasks.status,
+            tasks.priority,
+            tasks.story_points,
+            tasks.assignee,
+            tasks.due_date,
+            tasks.sprint_id,
+            sprints.name AS sprint_name,
+            sprints.project_id
+        FROM tasks
+        JOIN sprints ON sprints.id = tasks.sprint_id
+        WHERE sprints.project_id IN ({placeholders})
+        ORDER BY
+            sprints.project_id,
+            CASE tasks.status
+                WHEN 'In Progress' THEN 1
+                WHEN 'To Do' THEN 2
+                WHEN 'Done' THEN 3
+                ELSE 4
+            END,
+            tasks.updated_at DESC,
+            tasks.id DESC
+        """,
+        project_ids,
+    ).fetchall()
+
+    previews = {project_id: [] for project_id in project_ids}
+    for row in rows:
+        project_tasks = previews[row["project_id"]]
+        if len(project_tasks) < limit:
+            project_tasks.append(dict(row))
+
+    return previews
+
+
 def get_dashboard_counts():
     return get_db().execute(
         """
@@ -284,6 +363,7 @@ def list_tasks(sprint_id, filters=None):
                 WHEN 'Low' THEN 3
                 ELSE 4
             END,
+            added_on ASC,
             created_at ASC
     """
 
@@ -303,14 +383,25 @@ def get_task(task_id):
 
 
 # Create a new task inside a sprint.
-def create_task(sprint_id, title, description, status, priority, assignee, due_date):
+def create_task(
+    sprint_id,
+    title,
+    description,
+    status,
+    priority,
+    story_points,
+    assignee,
+    added_on,
+    due_date,
+):
     timestamp = _now()
+    completed_at = timestamp if status == "Done" else None
 
     cursor = get_db().execute(
         """
         INSERT INTO tasks
-            (sprint_id, title, description, status, priority, assignee, due_date, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (sprint_id, title, description, status, priority, story_points, assignee, added_on, due_date, completed_at, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             sprint_id,
@@ -318,8 +409,11 @@ def create_task(sprint_id, title, description, status, priority, assignee, due_d
             description,
             status,
             priority,
+            story_points,
             assignee,
+            added_on,
             due_date,
+            completed_at,
             timestamp,
             timestamp,
         ),
@@ -330,7 +424,27 @@ def create_task(sprint_id, title, description, status, priority, assignee, due_d
 
 
 # Update an existing task.
-def update_task(task_id, title, description, status, priority, assignee, due_date):
+def update_task(
+    task_id,
+    title,
+    description,
+    status,
+    priority,
+    story_points,
+    assignee,
+    added_on,
+    due_date,
+):
+    timestamp = _now()
+    existing = get_task(task_id)
+    completed_at = None
+    if status == "Done":
+        completed_at = (
+            existing["completed_at"]
+            if existing and existing["status"] == "Done" and existing["completed_at"]
+            else timestamp
+        )
+
     get_db().execute(
         """
         UPDATE tasks
@@ -338,8 +452,11 @@ def update_task(task_id, title, description, status, priority, assignee, due_dat
             description = ?,
             status = ?,
             priority = ?,
+            story_points = ?,
             assignee = ?,
+            added_on = ?,
             due_date = ?,
+            completed_at = ?,
             updated_at = ?
         WHERE id = ?
         """,
@@ -348,9 +465,12 @@ def update_task(task_id, title, description, status, priority, assignee, due_dat
             description,
             status,
             priority,
+            story_points,
             assignee,
+            added_on,
             due_date,
-            _now(),
+            completed_at,
+            timestamp,
             task_id,
         ),
     )
@@ -360,13 +480,23 @@ def update_task(task_id, title, description, status, priority, assignee, due_dat
 
 # Move a task between To Do, In Progress, and Done.
 def update_task_status(task_id, status):
+    timestamp = _now()
+    task = get_task(task_id)
+    completed_at = None
+    if status == "Done":
+        completed_at = (
+            task["completed_at"]
+            if task and task["status"] == "Done" and task["completed_at"]
+            else timestamp
+        )
+
     get_db().execute(
         """
         UPDATE tasks
-        SET status = ?, updated_at = ?
+        SET status = ?, completed_at = ?, updated_at = ?
         WHERE id = ?
         """,
-        (status, _now(), task_id),
+        (status, completed_at, timestamp, task_id),
     )
 
     get_db().commit()

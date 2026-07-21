@@ -3,11 +3,16 @@
 {% block title %}{{ project.name }} - TaskFlask{% endblock %}
 
 {% block content %}
-<nav class="breadcrumb" aria-label="Breadcrumb">
-    <a href="{{ url_for('main.projects') }}">Projects</a>
-    <span aria-hidden="true">/</span>
-    <span aria-current="page">{{ project.name }}</span>
-</nav>
+<div class="detail-navigation">
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="{{ url_for('main.projects') }}">Projects</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">{{ project.name }}</span>
+    </nav>
+    <a class="button secondary small detail-back-button" href="{{ url_for('main.projects') }}">
+        <span aria-hidden="true">←</span> Back to Projects
+    </a>
+</div>
 
 <section class="project-overview card">
     <div class="project-overview-icon" aria-hidden="true">
@@ -68,10 +73,12 @@
 
                             <div class="project-list-actions">
                                 <a class="button secondary small" href="{{ url_for('main.sprint_detail', sprint_id=sprint.id) }}">Open Board →</a>
-                                <a class="task-action-link" href="{{ url_for('main.edit_sprint', sprint_id=sprint.id) }}">Edit</a>
-                                <form method="post" action="{{ url_for('main.delete_sprint', sprint_id=sprint.id) }}" data-confirm="Delete this sprint and all of its tasks?">
-                                    <button class="task-action-link danger-text" type="submit">Delete</button>
-                                </form>
+                                <div class="card-hover-actions" aria-label="Sprint actions">
+                                    <a class="task-action-link" href="{{ url_for('main.edit_sprint', sprint_id=sprint.id) }}">Edit</a>
+                                    <form method="post" action="{{ url_for('main.delete_sprint', sprint_id=sprint.id) }}" data-confirm="Delete this sprint and all of its tasks?">
+                                        <button class="task-action-link danger-text" type="submit">Delete</button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
 
@@ -104,5 +111,65 @@
             <p>Create a sprint to start planning tasks and tracking progress.</p>
         </div>
     {% endif %}
+</section>
+
+<section class="project-burnup-section" data-burnup-chart>
+    <header class="project-sprints-header">
+        <div>
+            <p class="eyebrow">Progress tracking</p>
+            <h2>Sprint burnup</h2>
+            <p class="muted">Completed story points compared with the selected sprint’s total scope.</p>
+        </div>
+        {% if burnup_sprints %}
+            <div class="burnup-selector">
+                <label for="burnup-sprint">View sprint</label>
+                <select id="burnup-sprint" data-burnup-select>
+                    {% for sprint in burnup_sprints %}
+                        <option value="{{ sprint.id }}">{{ sprint.name }} · {{ sprint.status }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        {% endif %}
+    </header>
+
+    <div class="burnup-card card">
+        {% if burnup_sprints %}
+            <div class="burnup-summary" aria-live="polite">
+                <div>
+                    <span>Completed</span>
+                    <strong data-burnup-completed>0 SP</strong>
+                </div>
+                <div>
+                    <span>Total scope</span>
+                    <strong data-burnup-total>0 SP</strong>
+                </div>
+                <div>
+                    <span>Progress</span>
+                    <strong data-burnup-percent>0%</strong>
+                </div>
+                <a class="button secondary small" data-burnup-link href="{{ burnup_sprints[0].board_url }}">Open Sprint Board →</a>
+            </div>
+
+            <div class="burnup-legend" aria-hidden="true">
+                <span><i class="legend-line completed"></i> Completed points</span>
+                <span><i class="legend-line scope"></i> Total scope</span>
+            </div>
+
+            <div class="burnup-plot" data-burnup-plot>
+                <svg data-burnup-svg viewBox="0 0 800 300" role="img" aria-label="Sprint burnup chart"></svg>
+                <div class="burnup-empty" data-burnup-empty hidden>
+                    <strong>No story points to chart yet</strong>
+                    <span>Add tasks and estimates to this sprint to see its burnup.</span>
+                </div>
+            </div>
+            <p class="visually-hidden" data-burnup-description></p>
+            <script type="application/json" data-burnup-data>{{ burnup_sprints|tojson }}</script>
+        {% else %}
+            <div class="burnup-empty burnup-empty-static">
+                <strong>No sprint data yet</strong>
+                <span>Create a sprint and add estimated tasks to begin tracking story-point progress.</span>
+            </div>
+        {% endif %}
+    </div>
 </section>
 {% endblock %}

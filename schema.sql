@@ -32,8 +32,11 @@ CREATE TABLE tasks (
     description TEXT,
     status TEXT NOT NULL DEFAULT 'To Do',
     priority TEXT NOT NULL DEFAULT 'Medium',
+    story_points INTEGER NOT NULL CHECK (story_points IN (1, 2, 3, 5, 8, 13, 21, 34, 55, 89)),
     assignee TEXT,
+    added_on TEXT NOT NULL,
     due_date TEXT,
+    completed_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (sprint_id) REFERENCES sprints (id) ON DELETE CASCADE
