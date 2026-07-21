@@ -1,9 +1,13 @@
+from datetime import datetime, timezone
 from pathlib import Path
-from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from flask import Flask
 
 from .db import close_db, init_db_command, migrate_db_command
+
+
+PACIFIC_TIME = ZoneInfo("America/Los_Angeles")
 
 
 def format_datetime(value):
@@ -16,7 +20,11 @@ def format_datetime(value):
     except (TypeError, ValueError):
         return value
 
-    return parsed.strftime("%b %d, %Y at %I:%M %p").replace(" 0", " ")
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+
+    local_time = parsed.astimezone(PACIFIC_TIME)
+    return local_time.strftime("%b %d, %Y at %I:%M %p %Z").replace(" 0", " ")
 
 
 def create_app(test_config=None):
