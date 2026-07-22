@@ -112,6 +112,7 @@ def make_task(app, client, make_sprint):
         assignee="",
         added_on="",
         due_date="",
+        completed_at="",
     ):
         if sprint_id is None:
             sprint_id = make_sprint()
@@ -127,6 +128,7 @@ def make_task(app, client, make_sprint):
                 "assignee": assignee,
                 "added_on": added_on,
                 "due_date": due_date,
+                "completed_at": completed_at,
             },
             follow_redirects=True,
         )
