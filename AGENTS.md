@@ -20,16 +20,17 @@ The application currently supports:
 
 - Full CRUD for projects, sprints, and tasks.
 - Task fields for title, description, status, priority, assignee, story points,
-  added-on date, and due date.
-- Required Fibonacci story-point estimates: `1, 2, 3, 5, 8, 13, 21, 34, 55,
-  89`.
+  added-on date, due date, editable completion date, and persistent board order.
+- Required positive whole-number story-point estimates.
 - A sprint board with three columns: `To Do`, `In Progress`, and `Done`.
-- Vanilla-JavaScript drag-and-drop task movement, with a normal HTML status form
-  retained as a non-JavaScript fallback.
+- Vanilla-JavaScript drag-and-drop task movement between board columns.
 - Task filtering by assignee, priority, and status.
-- Sprint and project progress calculated from real task data.
-- Project-level sprint burnup charts comparing completed story points with total
-  scope over time.
+- Sprint and project progress calculated from completed story points over total
+  story points.
+- One cumulative project burnup chart that unifies story-point scope and
+  completion activity across every sprint in the project.
+- Safe Markdown rendering in project descriptions, sprint goals, and task
+  descriptions. Raw HTML is escaped.
 - Dashboard project sorting, live summary counts, and a three-project preview.
 - Expandable task previews on the Projects page, tagged with their sprint.
 - Friendly Pacific-time timestamp display and responsive, shared UI styling.
@@ -51,8 +52,9 @@ OAuth integration, or external service dependency.
   timestamps: [`schema.sql`](schema.sql).
 - Input normalization and validation: [`app/forms.py`](app/forms.py).
 - Parameterized SQL CRUD and aggregate queries: [`app/models.py`](app/models.py).
-- Task-count progress helpers: [`app/progress.py`](app/progress.py).
-- Story-point burnup-series calculations: [`app/burnup.py`](app/burnup.py).
+- Story-point progress helpers: [`app/progress.py`](app/progress.py).
+- Cumulative project burnup-series calculations: [`app/burnup.py`](app/burnup.py).
+- Safe user-authored Markdown rendering: [`app/markdown.py`](app/markdown.py).
 - Dashboard, project, sprint, task, filter, and status-change routes:
   [`app/routes.py`](app/routes.py).
 - Server-rendered pages and helpful empty states:
@@ -73,9 +75,9 @@ OAuth integration, or external service dependency.
 - The `activity_log` table exists in the schema, but no current route or model
   writes activity records. Do not present it as a finished recent-activity
   feature.
-- Burnup history is reconstructed from task `added_on`, `created_at`,
-  `completed_at`, and fallback timestamps. It is not a complete immutable event
-  history.
+- Project burnup history is reconstructed from every sprint task's `added_on`,
+  `created_at`, `completed_at`, and fallback timestamps. It is cumulative, but
+  it is not a complete immutable event history.
 - The app is intended for local or classroom-scale use. Production deployment,
   multi-team tenancy, and external integrations are outside the current scope.
 
@@ -85,8 +87,10 @@ OAuth integration, or external service dependency.
   model layer, flash messages, redirect, and build template context.
 - `forms.py` owns normalization, allowed values, and field-level validation.
 - `models.py` owns all application SQL and database persistence.
-- `progress.py` owns pure task-count progress calculations.
-- `burnup.py` owns pure story-point time-series calculations.
+- `progress.py` owns pure story-point progress calculations while preserving
+  task-status counts for board summaries.
+- `burnup.py` owns the pure, cumulative project-wide story-point time series.
+- `markdown.py` owns the allowlisted Markdown-to-safe-HTML transformation.
 - `templates/` owns page structure and conditional/empty-state rendering.
 - `style.css` owns the design system and responsive presentation.
 - `app.js` adds progressive enhancement; core CRUD must continue to work without
@@ -100,9 +104,11 @@ of truth.
 
 - **Parameterize every SQL value.** Never interpolate request data into SQL with
   f-strings, `.format()`, or string concatenation.
-- Task status, sprint status, priority, and story-point choices originate from
-  the constants in `app/forms.py`. Keep schema constraints, templates,
-  JavaScript behavior, migrations, and tests synchronized with those constants.
+- Task status, sprint status, and priority choices originate from constants in
+  `app/forms.py`. Keep story-point validation, schema constraints, templates,
+  migrations, and tests synchronized.
+- Preserve `tasks.board_order` whenever tasks are created, edited, moved, or
+  reordered so a board reload does not discard the user's chosen card order.
 - Validation belongs in `forms.py`, following the existing `validate_*` and
   `clean_*` patterns.
 - Fetch missing project, sprint, and task records through the shared
@@ -112,11 +118,13 @@ of truth.
 - Use Post/Redirect/Get after successful create, update, delete, and lifecycle
   operations.
 - Preserve `completed_at` semantics: set it when a task or sprint becomes
-  completed, retain it while it remains completed, and clear it when reopened.
+  completed, allow an explicit historical date for Done tasks, retain it while
+  the item remains completed, and clear it when reopened.
 - Reuse the shared CSS design tokens and components before adding page-specific
   styles. Check `/design-system` when changing the visual language.
-- Maintain accessible labels, focus states, live regions, confirmation text,
-  and non-drag task-status controls.
+- Maintain accessible labels, focus states, live regions, and confirmation text.
+  Task-card actions must remain visible on touch devices and reveal on keyboard
+  focus as well as pointer hover.
 
 ## Database changes
 
@@ -161,8 +169,14 @@ python -m pytest -q
   data in templates.
 - Do not show every project on the dashboard. The dashboard intentionally limits
   its preview to `DASHBOARD_PROJECT_LIMIT`; the Projects page is the full list.
-- When switching burnup sprints, clear the previous SVG before rendering the new
-  selection, and hide the chart/legend for an empty series.
+- Keep the project burnup global and cumulative across all of its sprints. Do
+  not replace it with a per-sprint selector. Clear the SVG before every render,
+  and hide the chart/legend for an empty series.
+- Progress percentages must use completed story points divided by total story
+  points. Task counts may still be displayed as board metadata, but must not
+  drive progress bars.
+- Task descriptions must pass through the registered `markdown` Jinja filter;
+  never mark user-provided HTML safe directly.
 - Keep changes narrowly scoped and preserve unrelated work in a dirty worktree.
 - Add or update tests for behavior changes and run `python -m pytest -q` before
   considering the work complete.
