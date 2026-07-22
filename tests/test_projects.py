@@ -25,7 +25,7 @@ def test_database_commands_are_registered_and_migration_runs(app):
     assert "Migrated the TaskFlask database." in result.output
 
 
-def test_migration_expands_existing_story_point_constraint(app, make_sprint):
+def test_migration_allows_any_positive_story_point_value(app, make_sprint):
     sprint_id = make_sprint()
 
     with app.app_context():
@@ -65,15 +65,20 @@ def test_migration_expands_existing_story_point_constraint(app, make_sprint):
         migrate_db()
 
         db.execute(
-            "UPDATE tasks SET story_points = 55 WHERE title = 'Existing task'"
+            "UPDATE tasks SET story_points = 20 WHERE title = 'Existing task'"
         )
         db.commit()
         task = db.execute(
-            "SELECT story_points, added_on FROM tasks WHERE title = 'Existing task'"
+            """
+            SELECT story_points, added_on, board_order
+            FROM tasks
+            WHERE title = 'Existing task'
+            """
         ).fetchone()
 
-    assert task["story_points"] == 55
+    assert task["story_points"] == 20
     assert task["added_on"] == "2026-07-15"
+    assert task["board_order"] == 0
 
 
 def test_design_system_reference_page(client):
@@ -116,6 +121,9 @@ def test_project_detail_has_back_navigation(client, make_project):
 
     assert response.status_code == 200
     assert b"Back to Projects" in response.data
+    assert b'aria-label="Current project shortcuts"' in response.data
+    assert b'href="#planning-cycles"' in response.data
+    assert b'href="#project-burnup"' in response.data
 
 
 def test_editing_a_project(client, make_project):
@@ -151,8 +159,8 @@ def test_deleting_a_project(client, make_project):
 def test_dashboard_and_project_list_show_project_progress(client, make_project, make_sprint, make_task):
     project_id = make_project(name="Progress Project")
     sprint_id = make_sprint(project_id=project_id)
-    make_task(sprint_id=sprint_id, title="Completed", status="Done")
-    make_task(sprint_id=sprint_id, title="Open", status="To Do")
+    make_task(sprint_id=sprint_id, title="Completed", status="Done", story_points=3)
+    make_task(sprint_id=sprint_id, title="Open", status="To Do", story_points=5)
 
     dashboard_response = client.get("/")
     projects_response = client.get("/projects")
@@ -160,8 +168,8 @@ def test_dashboard_and_project_list_show_project_progress(client, make_project, 
 
     for response in (dashboard_response, projects_response, detail_response):
         assert response.status_code == 200
-        assert b"50%" in response.data
-        assert b"1 of 2 tasks done" in response.data
+        assert b"38%" in response.data
+        assert b"3 of 8 story points" in response.data
 
 
 def test_project_list_expands_task_previews_with_sprint_tags(

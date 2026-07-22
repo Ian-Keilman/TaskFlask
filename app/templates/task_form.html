@@ -56,16 +56,16 @@
     {% endif %}
 
     <label for="story_points">Story Points</label>
-    <select id="story_points" name="story_points" required>
-        {% for points in story_points_options %}
-            <option value="{{ points }}"
-                {% if task and task.story_points == points %}selected{% endif %}
-            >
-                {{ points }} point{% if points != 1 %}s{% endif %}
-            </option>
-        {% endfor %}
-    </select>
-    <p class="field-help">Estimate complexity using the Fibonacci sequence.</p>
+    <input
+        id="story_points"
+        name="story_points"
+        type="number"
+        min="1"
+        step="1"
+        inputmode="numeric"
+        value="{{ task.story_points if task and task.story_points is not none else '' }}"
+        required
+    >
     {% if errors.story_points %}
         <p class="field-error">{{ errors.story_points }}</p>
     {% endif %}
@@ -86,7 +86,6 @@
         value="{{ task.added_on if task else '' }}"
         required
     >
-    <p class="field-help">Choose when this task’s story points should enter the burnup chart.</p>
     {% if errors.added_on %}
         <p class="field-error">{{ errors.added_on }}</p>
     {% endif %}
@@ -100,6 +99,17 @@
     >
     {% if errors.due_date %}
         <p class="field-error">{{ errors.due_date }}</p>
+    {% endif %}
+
+    <label for="completed_at">Completed On</label>
+    <input
+        id="completed_at"
+        name="completed_at"
+        type="date"
+        value="{{ task.completed_at|date_input if task else '' }}"
+    >
+    {% if errors.completed_at %}
+        <p class="field-error">{{ errors.completed_at }}</p>
     {% endif %}
 
     <div class="actions">

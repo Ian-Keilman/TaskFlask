@@ -15,6 +15,7 @@
 
     <label for="description">Description</label>
     <textarea id="description" name="description" rows="5">{{ project.description if project else '' }}</textarea>
+    <p class="field-help">Markdown is supported for headings, emphasis, links, lists, checklists, quotes, and code.</p>
 
     <div class="actions">
         <button class="button" type="submit">Save Project</button>

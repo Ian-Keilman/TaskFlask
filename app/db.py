@@ -46,8 +46,9 @@ def migrate_db():
             title TEXT NOT NULL,
             description TEXT,
             status TEXT NOT NULL DEFAULT 'To Do',
+            board_order INTEGER NOT NULL DEFAULT 0,
             priority TEXT NOT NULL DEFAULT 'Medium',
-            story_points INTEGER NOT NULL DEFAULT 1 CHECK (story_points IN (1, 2, 3, 5, 8, 13, 21, 34, 55, 89)),
+            story_points INTEGER NOT NULL DEFAULT 1 CHECK (story_points > 0),
             assignee TEXT,
             added_on TEXT NOT NULL,
             due_date TEXT,
@@ -77,7 +78,7 @@ def migrate_db():
             """
             ALTER TABLE tasks
             ADD COLUMN story_points INTEGER NOT NULL DEFAULT 1
-                CHECK (story_points IN (1, 2, 3, 5, 8, 13, 21, 34, 55, 89))
+                CHECK (story_points > 0)
             """
         )
 
@@ -91,10 +92,42 @@ def migrate_db():
         db.execute("ALTER TABLE tasks ADD COLUMN added_on TEXT")
         db.execute("UPDATE tasks SET added_on = SUBSTR(created_at, 1, 10)")
 
+    if "board_order" not in task_columns:
+        db.execute(
+            "ALTER TABLE tasks ADD COLUMN board_order INTEGER NOT NULL DEFAULT 0"
+        )
+        rows = db.execute(
+            """
+            SELECT id, sprint_id, status
+            FROM tasks
+            ORDER BY
+                sprint_id,
+                status,
+                CASE priority
+                    WHEN 'High' THEN 1
+                    WHEN 'Medium' THEN 2
+                    WHEN 'Low' THEN 3
+                    ELSE 4
+                END,
+                added_on,
+                created_at,
+                id
+            """
+        ).fetchall()
+        next_positions = {}
+        for row in rows:
+            group = (row["sprint_id"], row["status"])
+            position = next_positions.get(group, 0)
+            db.execute(
+                "UPDATE tasks SET board_order = ? WHERE id = ?",
+                (position, row["id"]),
+            )
+            next_positions[group] = position + 1
+
     tasks_schema = db.execute(
         "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'tasks'"
     ).fetchone()["sql"]
-    if "21, 34, 55, 89" not in tasks_schema:
+    if "story_points > 0" not in tasks_schema:
         db.executescript(
             """
             ALTER TABLE tasks RENAME TO tasks_old_story_points;
@@ -105,9 +138,10 @@ def migrate_db():
                 title TEXT NOT NULL,
                 description TEXT,
                 status TEXT NOT NULL DEFAULT 'To Do',
+                board_order INTEGER NOT NULL DEFAULT 0,
                 priority TEXT NOT NULL DEFAULT 'Medium',
                 story_points INTEGER NOT NULL DEFAULT 1
-                    CHECK (story_points IN (1, 2, 3, 5, 8, 13, 21, 34, 55, 89)),
+                    CHECK (story_points > 0),
                 assignee TEXT,
                 added_on TEXT NOT NULL,
                 due_date TEXT,
@@ -118,11 +152,11 @@ def migrate_db():
             );
 
             INSERT INTO tasks (
-                id, sprint_id, title, description, status, priority,
+                id, sprint_id, title, description, status, board_order, priority,
                 story_points, assignee, added_on, due_date, completed_at, created_at, updated_at
             )
             SELECT
-                id, sprint_id, title, description, status, priority,
+                id, sprint_id, title, description, status, board_order, priority,
                 story_points, assignee, added_on, due_date, completed_at, created_at, updated_at
             FROM tasks_old_story_points;
 
@@ -134,6 +168,8 @@ def migrate_db():
         """
         CREATE INDEX IF NOT EXISTS idx_tasks_sprint_id ON tasks(sprint_id);
         CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+        CREATE INDEX IF NOT EXISTS idx_tasks_board_order
+            ON tasks(sprint_id, status, board_order);
         CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
         CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee);
         """

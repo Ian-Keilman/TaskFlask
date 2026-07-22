@@ -10,21 +10,65 @@ const board = document.querySelector("[data-task-board]");
 
 if (board) {
     let draggedCard = null;
+    let dragPreview = null;
     const statusMessage = document.querySelector(".drag-status");
+    const dropIndicator = document.createElement("div");
+    dropIndicator.className = "task-drop-indicator";
+    dropIndicator.setAttribute("aria-hidden", "true");
+
+    const clearDropState = () => {
+        board.querySelectorAll("[data-drop-zone].is-drag-over").forEach((zone) => {
+            zone.classList.remove("is-drag-over");
+        });
+        dropIndicator.remove();
+    };
+
+    const findInsertionTarget = (dropZone, pointerY) => {
+        return [...dropZone.querySelectorAll("[data-task-id]")]
+            .filter((candidate) => candidate !== draggedCard)
+            .find((candidate) => {
+                const bounds = candidate.getBoundingClientRect();
+                return pointerY < bounds.top + bounds.height / 2;
+            });
+    };
 
     board.addEventListener("dragstart", (event) => {
         const card = event.target.closest("[data-task-id]");
         if (!card) return;
+        if (event.target.closest("a, button, input, select, textarea")) {
+            event.preventDefault();
+            return;
+        }
 
         draggedCard = card;
         card.classList.add("is-dragging");
+        card.setAttribute("aria-grabbed", "true");
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData("text/plain", card.dataset.taskId);
+
+        const cardBounds = card.getBoundingClientRect();
+        dragPreview = card.cloneNode(true);
+        dragPreview.classList.remove("is-dragging", "is-updating");
+        dragPreview.classList.add("task-drag-preview");
+        dragPreview.style.width = `${cardBounds.width}px`;
+        dragPreview.removeAttribute("draggable");
+        dragPreview.querySelectorAll("a, button, input, select, textarea").forEach((control) => {
+            control.setAttribute("tabindex", "-1");
+        });
+        document.body.appendChild(dragPreview);
+        event.dataTransfer.setDragImage(
+            dragPreview,
+            Math.min(Math.max(event.offsetX, 24), cardBounds.width - 24),
+            Math.min(Math.max(event.offsetY, 20), cardBounds.height - 20),
+        );
     });
 
     board.addEventListener("dragend", () => {
         draggedCard?.classList.remove("is-dragging");
-        board.querySelectorAll(".is-drag-over").forEach((column) => column.classList.remove("is-drag-over"));
+        draggedCard?.removeAttribute("aria-grabbed");
+        dragPreview?.remove();
+        dragPreview = null;
+        clearDropState();
         draggedCard = null;
     });
 
@@ -34,8 +78,22 @@ if (board) {
 
         event.preventDefault();
         event.dataTransfer.dropEffect = "move";
-        board.querySelectorAll(".is-drag-over").forEach((item) => item.classList.remove("is-drag-over"));
-        column.classList.add("is-drag-over");
+        clearDropState();
+        const dropZone = column.querySelector("[data-drop-zone]");
+        dropZone?.classList.add("is-drag-over");
+
+        if (dropZone) {
+            const insertionTarget = findInsertionTarget(dropZone, event.clientY);
+            const emptyState = dropZone.querySelector(".column-empty");
+            dropZone.insertBefore(dropIndicator, insertionTarget || emptyState);
+        }
+    });
+
+    board.addEventListener("dragleave", (event) => {
+        const dropZone = event.target.closest("[data-drop-zone]");
+        if (dropZone && !dropZone.contains(event.relatedTarget)) {
+            dropZone.classList.remove("is-drag-over");
+        }
     });
 
     board.addEventListener("drop", async (event) => {
@@ -43,17 +101,44 @@ if (board) {
         if (!column || !draggedCard) return;
 
         event.preventDefault();
+        clearDropState();
+        const card = draggedCard;
         const newStatus = column.dataset.status;
-        const currentColumn = draggedCard.closest("[data-status]");
-
-        if (currentColumn?.dataset.status === newStatus) return;
 
         const formData = new FormData();
         formData.set("status", newStatus);
-        draggedCard.classList.add("is-updating");
+        const startingBounds = card.getBoundingClientRect();
+        const targetList = column.querySelector("[data-drop-zone]");
+        const insertionTarget = findInsertionTarget(targetList, event.clientY);
+
+        targetList.querySelector(".column-empty")?.remove();
+        if (insertionTarget) {
+            targetList.insertBefore(card, insertionTarget);
+        } else {
+            targetList.appendChild(card);
+        }
+
+        targetList.querySelectorAll("[data-task-id]").forEach((taskCard) => {
+            formData.append("ordered_task_ids", taskCard.dataset.taskId);
+        });
+        card.classList.remove("is-dragging");
+        card.removeAttribute("aria-grabbed");
+        card.classList.add("is-updating");
+
+        const endingBounds = card.getBoundingClientRect();
+        const settleAnimation = card.animate(
+            [
+                {
+                    transform: `translate(${startingBounds.left - endingBounds.left}px, ${startingBounds.top - endingBounds.top}px)`,
+                    opacity: 0.72,
+                },
+                { transform: "translate(0, 0)", opacity: 1 },
+            ],
+            { duration: 220, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+        );
 
         try {
-            const response = await fetch(draggedCard.dataset.statusUrl, {
+            const response = await fetch(card.dataset.statusUrl, {
                 method: "POST",
                 body: formData,
                 headers: { "X-Requested-With": "XMLHttpRequest" },
@@ -62,11 +147,13 @@ if (board) {
             if (!response.ok) throw new Error("Status update failed");
 
             statusMessage.textContent = `Task moved to ${newStatus}.`;
+            await settleAnimation.finished.catch(() => {});
             window.location.reload();
         } catch (error) {
-            draggedCard.classList.remove("is-updating");
-            statusMessage.textContent = "The task could not be moved. Please use the status menu on the card.";
+            card.classList.remove("is-updating");
+            statusMessage.textContent = "The task could not be moved. Please try dragging it again.";
             window.alert(statusMessage.textContent);
+            window.location.reload();
         }
     });
 }
@@ -77,16 +164,10 @@ if (burnupChart) {
     const dataElement = burnupChart.querySelector("[data-burnup-data]");
 
     if (dataElement) {
-        const sprints = JSON.parse(dataElement.textContent);
-        const select = burnupChart.querySelector("[data-burnup-select]");
+        const burnup = JSON.parse(dataElement.textContent);
         const svg = burnupChart.querySelector("[data-burnup-svg]");
         const emptyState = burnupChart.querySelector("[data-burnup-empty]");
         const legend = burnupChart.querySelector(".burnup-legend");
-        const completedValue = burnupChart.querySelector("[data-burnup-completed]");
-        const totalValue = burnupChart.querySelector("[data-burnup-total]");
-        const percentValue = burnupChart.querySelector("[data-burnup-percent]");
-        const boardLink = burnupChart.querySelector("[data-burnup-link]");
-        const description = burnupChart.querySelector("[data-burnup-description]");
         const svgNamespace = "http://www.w3.org/2000/svg";
 
         const createSvgElement = (name, attributes = {}) => {
@@ -104,16 +185,9 @@ if (burnupChart) {
             }).format(date);
         };
 
-        const renderBurnup = (sprint) => {
-            completedValue.textContent = `${sprint.completed_points} SP`;
-            totalValue.textContent = `${sprint.total_points} SP`;
-            percentValue.textContent = `${sprint.percent_complete}%`;
-            boardLink.href = sprint.board_url;
-            svg.setAttribute("aria-label", `${sprint.name} burnup chart`);
-            description.textContent = `${sprint.name}: ${sprint.completed_points} of ${sprint.total_points} story points completed.`;
-
+        const renderBurnup = () => {
             svg.replaceChildren();
-            const hasChartData = sprint.total_points > 0 && sprint.points.length > 0;
+            const hasChartData = burnup.total_points > 0 && burnup.points.length > 0;
             svg.toggleAttribute("hidden", !hasChartData);
             emptyState.hidden = hasChartData;
             legend.hidden = !hasChartData;
@@ -127,8 +201,12 @@ if (burnupChart) {
             const padding = { top: 20, right: 22, bottom: 42, left: 54 };
             const plotWidth = width - padding.left - padding.right;
             const plotHeight = height - padding.top - padding.bottom;
-            const maxPoints = Math.max(sprint.total_points, 1);
-            const pointCount = sprint.points.length;
+            const maxPoints = Math.max(
+                burnup.total_points,
+                ...burnup.points.map((point) => Math.max(point.total, point.completed)),
+                1,
+            );
+            const pointCount = burnup.points.length;
             const xPosition = (index) => pointCount === 1
                 ? padding.left + plotWidth / 2
                 : padding.left + (index / (pointCount - 1)) * plotWidth;
@@ -163,14 +241,14 @@ if (burnupChart) {
                     y: height - 14,
                     "text-anchor": index === 0 ? "start" : index === pointCount - 1 ? "end" : "middle",
                 });
-                label.textContent = formatChartDate(sprint.points[index].date);
+                label.textContent = formatChartDate(burnup.points[index].date);
                 svg.appendChild(label);
             });
 
-            const totalPoints = sprint.points
+            const totalPoints = burnup.points
                 .map((point, index) => `${xPosition(index)},${yPosition(point.total)}`)
                 .join(" ");
-            const completedPoints = sprint.points
+            const completedPoints = burnup.points
                 .map((point, index) => `${xPosition(index)},${yPosition(point.completed)}`)
                 .join(" ");
 
@@ -183,7 +261,7 @@ if (burnupChart) {
                 points: completedPoints,
             }));
 
-            const latest = sprint.points[pointCount - 1];
+            const latest = burnup.points[pointCount - 1];
             [
                 [latest.total, "burnup-point-scope"],
                 [latest.completed, "burnup-point-completed"],
@@ -197,12 +275,6 @@ if (burnupChart) {
             });
         };
 
-        const showSelectedSprint = () => {
-            const selected = sprints.find((sprint) => String(sprint.id) === select.value) || sprints[0];
-            renderBurnup(selected);
-        };
-
-        select.addEventListener("change", showSelectedSprint);
-        showSelectedSprint();
+        renderBurnup();
     }
 }

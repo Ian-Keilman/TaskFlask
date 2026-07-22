@@ -31,8 +31,9 @@ CREATE TABLE tasks (
     title TEXT NOT NULL,
     description TEXT,
     status TEXT NOT NULL DEFAULT 'To Do',
+    board_order INTEGER NOT NULL DEFAULT 0,
     priority TEXT NOT NULL DEFAULT 'Medium',
-    story_points INTEGER NOT NULL CHECK (story_points IN (1, 2, 3, 5, 8, 13, 21, 34, 55, 89)),
+    story_points INTEGER NOT NULL CHECK (story_points > 0),
     assignee TEXT,
     added_on TEXT NOT NULL,
     due_date TEXT,
@@ -54,6 +55,7 @@ CREATE TABLE activity_log (
 CREATE INDEX idx_sprints_project_id ON sprints(project_id);
 CREATE INDEX idx_tasks_sprint_id ON tasks(sprint_id);
 CREATE INDEX idx_tasks_status ON tasks(status);
+CREATE INDEX idx_tasks_board_order ON tasks(sprint_id, status, board_order);
 CREATE INDEX idx_tasks_priority ON tasks(priority);
 CREATE INDEX idx_tasks_assignee ON tasks(assignee);
 CREATE INDEX idx_activity_log_entity ON activity_log(entity_type, entity_id);

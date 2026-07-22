@@ -14,7 +14,7 @@
     </a>
 </div>
 
-<section class="project-overview card">
+<section class="project-overview card" id="project-overview">
     <div class="project-overview-icon" aria-hidden="true">
         <span class="project-folder-icon"></span>
     </div>
@@ -24,7 +24,9 @@
             <div>
                 <p class="eyebrow">Project workspace</p>
                 <h1>{{ project.name }}</h1>
-                <p>{{ project.description or "Add a project description to give your team more context." }}</p>
+                <div class="project-description markdown-content">
+                    {{ (project.description or "Add a project description to give your team more context.")|markdown }}
+                </div>
             </div>
 
             <div class="project-overview-actions">
@@ -42,7 +44,7 @@
     </div>
 </section>
 
-<section class="project-sprints-section">
+<section class="project-sprints-section" id="planning-cycles">
     <header class="project-sprints-header">
         <div>
             <p class="eyebrow">Planning cycles</p>
@@ -68,7 +70,9 @@
                                     <span class="status-pill status-{{ sprint.status|lower }}">● {{ sprint.status }}</span>
                                     <h3><a href="{{ url_for('main.sprint_detail', sprint_id=sprint.id) }}">{{ sprint.name }}</a></h3>
                                 </div>
-                                <p>{{ sprint.goal or "No sprint goal has been added yet." }}</p>
+                                <div class="sprint-card-goal markdown-content markdown-summary">
+                                    {{ (sprint.goal or "No sprint goal has been added yet.")|markdown }}
+                                </div>
                             </div>
 
                             <div class="project-list-actions">
@@ -90,13 +94,13 @@
                         <div class="project-sprint-progress">
                             <div class="progress-heading">
                                 <strong>{{ sprint.percent_complete }}% complete</strong>
-                                {% if sprint.total %}
-                                    <span>{{ sprint.done }} of {{ sprint.total }} tasks done</span>
+                                {% if sprint.total_points %}
+                                    <span>{{ sprint.completed_points }} of {{ sprint.total_points }} story points completed</span>
                                 {% else %}
-                                    <span>No tasks added yet</span>
+                                    <span>No story points estimated yet</span>
                                 {% endif %}
                             </div>
-                            <div class="progress-bar progress-bar-large" aria-label="{{ sprint.percent_complete }} percent complete">
+                            <div class="progress-bar progress-bar-large" aria-label="{{ sprint.completed_points }} of {{ sprint.total_points }} story points completed; {{ sprint.percent_complete }} percent">
                                 <span style="width: {{ sprint.percent_complete }}%"></span>
                             </div>
                         </div>
@@ -113,41 +117,32 @@
     {% endif %}
 </section>
 
-<section class="project-burnup-section" data-burnup-chart>
+<section class="project-burnup-section" id="project-burnup" data-burnup-chart>
     <header class="project-sprints-header">
         <div>
             <p class="eyebrow">Progress tracking</p>
-            <h2>Sprint burnup</h2>
-            <p class="muted">Completed story points compared with the selected sprint’s total scope.</p>
+            <h2>Project burnup</h2>
+            <p class="muted">Cumulative completed story points compared with total scope across every sprint.</p>
         </div>
-        {% if burnup_sprints %}
-            <div class="burnup-selector">
-                <label for="burnup-sprint">View sprint</label>
-                <select id="burnup-sprint" data-burnup-select>
-                    {% for sprint in burnup_sprints %}
-                        <option value="{{ sprint.id }}">{{ sprint.name }} · {{ sprint.status }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        {% endif %}
+        <span class="board-total">All {{ burnup.sprint_count }} sprint{% if burnup.sprint_count != 1 %}s{% endif %}</span>
     </header>
 
     <div class="burnup-card card">
-        {% if burnup_sprints %}
+        {% if burnup.sprint_count %}
             <div class="burnup-summary" aria-live="polite">
                 <div>
                     <span>Completed</span>
-                    <strong data-burnup-completed>0 SP</strong>
+                    <strong>{{ burnup.completed_points }} SP</strong>
                 </div>
                 <div>
                     <span>Total scope</span>
-                    <strong data-burnup-total>0 SP</strong>
+                    <strong>{{ burnup.total_points }} SP</strong>
                 </div>
                 <div>
                     <span>Progress</span>
-                    <strong data-burnup-percent>0%</strong>
+                    <strong>{{ burnup.percent_complete }}%</strong>
                 </div>
-                <a class="button secondary small" data-burnup-link href="{{ burnup_sprints[0].board_url }}">Open Sprint Board →</a>
+                <a class="button secondary small" href="#planning-cycles">View all sprints ↑</a>
             </div>
 
             <div class="burnup-legend" aria-hidden="true">
@@ -156,14 +151,14 @@
             </div>
 
             <div class="burnup-plot" data-burnup-plot>
-                <svg data-burnup-svg viewBox="0 0 800 300" role="img" aria-label="Sprint burnup chart"></svg>
+                <svg data-burnup-svg viewBox="0 0 800 300" role="img" aria-label="{{ project.name }} cumulative project burnup chart"></svg>
                 <div class="burnup-empty" data-burnup-empty hidden>
                     <strong>No story points to chart yet</strong>
-                    <span>Add tasks and estimates to this sprint to see its burnup.</span>
+                    <span>Add estimated tasks to any sprint in this project to begin the cumulative chart.</span>
                 </div>
             </div>
-            <p class="visually-hidden" data-burnup-description></p>
-            <script type="application/json" data-burnup-data>{{ burnup_sprints|tojson }}</script>
+            <p class="visually-hidden">{{ project.name }}: {{ burnup.completed_points }} of {{ burnup.total_points }} story points completed across {{ burnup.sprint_count }} sprints.</p>
+            <script type="application/json" data-burnup-data>{{ burnup|tojson }}</script>
         {% else %}
             <div class="burnup-empty burnup-empty-static">
                 <strong>No sprint data yet</strong>

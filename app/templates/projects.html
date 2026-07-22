@@ -27,7 +27,9 @@
                     <div class="project-list-title-row">
                         <div>
                             <h2><a href="{{ url_for('main.project_detail', project_id=project.id) }}">{{ project.name }}</a></h2>
-                            <p>{{ project.description or "No project description yet." }}</p>
+                            <div class="project-list-description markdown-content markdown-summary">
+                                {{ (project.description or "No project description yet.")|markdown }}
+                            </div>
                         </div>
                         <div class="project-list-actions">
                             <a class="button secondary small" href="{{ url_for('main.project_detail', project_id=project.id) }}">Open Project →</a>
@@ -48,14 +50,14 @@
 
                     <div class="project-list-progress">
                         <div class="progress-heading">
-                            <strong>Task progress</strong>
-                            {% if project.total %}
-                                <span>{{ project.done }} of {{ project.total }} tasks done</span>
+                            <strong>Story-point progress</strong>
+                            {% if project.total_points %}
+                                <span>{{ project.completed_points }} of {{ project.total_points }} story points completed</span>
                             {% else %}
-                                <span>No tasks yet</span>
+                                <span>No story points estimated yet</span>
                             {% endif %}
                         </div>
-                        <div class="progress-bar progress-bar-large" aria-label="{{ project.percent_complete }} percent complete">
+                        <div class="progress-bar progress-bar-large" aria-label="{{ project.completed_points }} of {{ project.total_points }} story points completed; {{ project.percent_complete }} percent">
                             <span style="width: {{ project.percent_complete }}%"></span>
                         </div>
                     </div>
