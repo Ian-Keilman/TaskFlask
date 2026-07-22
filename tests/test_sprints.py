@@ -27,6 +27,8 @@ def test_sprint_detail_has_back_navigation(client, make_sprint):
 
     assert response.status_code == 200
     assert b"Back to Project" in response.data
+    assert b'aria-label="Current project shortcuts"' in response.data
+    assert b"Sprint Board" in response.data
 
 
 def test_editing_a_sprint(client, make_sprint):
