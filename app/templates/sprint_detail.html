@@ -24,7 +24,9 @@
                 <span class="status-pill status-{{ sprint.status|lower }}">● {{ sprint.status }}</span>
             </div>
             <h1>{{ sprint.name }}</h1>
-            <p class="sprint-goal">{{ sprint.goal or "Add a sprint goal to keep the team focused." }}</p>
+            <div class="sprint-goal markdown-content">
+                {{ (sprint.goal or "Add a sprint goal to keep the team focused.")|markdown }}
+            </div>
         </div>
 
         <div class="sprint-primary-actions">
@@ -43,9 +45,13 @@
         <div class="sprint-progress-main">
             <div class="progress-heading">
                 <strong>Overall progress</strong>
-                <span>{{ progress.done }} of {{ progress.total }} tasks complete</span>
+                {% if progress.total_points %}
+                    <span>{{ progress.completed_points }} of {{ progress.total_points }} story points completed</span>
+                {% else %}
+                    <span>No story points estimated yet</span>
+                {% endif %}
             </div>
-            <div class="progress-bar progress-bar-large" aria-label="{{ progress.percent_complete }} percent complete">
+            <div class="progress-bar progress-bar-large" aria-label="{{ progress.completed_points }} of {{ progress.total_points }} story points completed; {{ progress.percent_complete }} percent">
                 <span style="width: {{ progress.percent_complete }}%"></span>
             </div>
         </div>
@@ -148,7 +154,7 @@
 
             <div class="task-list" data-drop-zone>
                 {% for task in grouped_tasks[status] %}
-                    <article class="task-card" draggable="true" data-task-id="{{ task.id }}" data-status-url="{{ url_for('main.change_task_status', task_id=task.id) }}">
+                    <article class="task-card" draggable="true" tabindex="0" data-task-id="{{ task.id }}" data-status-url="{{ url_for('main.change_task_status', task_id=task.id) }}">
                         <div class="task-card-topline">
                             <div class="task-card-labels">
                                 <span class="priority-pill priority-{{ task.priority|lower }}">{{ task.priority }}</span>
@@ -158,34 +164,27 @@
                         </div>
 
                         <h3>{{ task.title }}</h3>
-                        <p class="task-description">{{ task.description or "No description provided." }}</p>
+                        <div class="task-description markdown-content">{{ (task.description or "No description provided.")|markdown }}</div>
 
-                        <div class="task-metadata">
-                            {% if task.assignee %}
-                                <span class="assignee-chip"><span aria-hidden="true">●</span> {{ task.assignee }}</span>
-                            {% else %}
-                                <span class="muted">Unassigned</span>
-                            {% endif %}
-                            <span>Added {{ task.added_on }}</span>
-                            {% if task.due_date %}<span>Due {{ task.due_date }}</span>{% endif %}
+                        <div class="task-card-footer">
+                            <div class="task-metadata">
+                                {% if task.assignee %}
+                                    <span class="assignee-chip"><span aria-hidden="true">●</span> {{ task.assignee }}</span>
+                                {% else %}
+                                    <span class="muted">Unassigned</span>
+                                {% endif %}
+                                <span>Added {{ task.added_on }}</span>
+                                {% if task.due_date %}<span>Due {{ task.due_date }}</span>{% endif %}
+                                {% if task.completed_at %}<span>Completed {{ task.completed_at|date_input }}</span>{% endif %}
+                            </div>
+
+                            <div class="task-card-actions" aria-label="Task actions">
+                                <a class="task-action-link" href="{{ url_for('main.edit_task', task_id=task.id) }}">Edit</a>
+                                <form method="post" action="{{ url_for('main.delete_task', task_id=task.id) }}" data-confirm="Delete this task?">
+                                    <button class="task-action-link danger-text" type="submit">Delete</button>
+                                </form>
+                            </div>
                         </div>
-
-                        <div class="task-card-actions">
-                            <a class="task-action-link" href="{{ url_for('main.edit_task', task_id=task.id) }}">Edit</a>
-                            <form method="post" action="{{ url_for('main.delete_task', task_id=task.id) }}" data-confirm="Delete this task?">
-                                <button class="task-action-link danger-text" type="submit">Delete</button>
-                            </form>
-                        </div>
-
-                        <form class="status-form" method="post" action="{{ url_for('main.change_task_status', task_id=task.id) }}">
-                            <label class="visually-hidden" for="task-status-{{ task.id }}">Change status for {{ task.title }}</label>
-                            <select id="task-status-{{ task.id }}" name="status">
-                                {% for next_status in statuses %}
-                                    <option value="{{ next_status }}" {% if task.status == next_status %}selected{% endif %}>{{ next_status }}</option>
-                                {% endfor %}
-                            </select>
-                            <button class="button secondary small" type="submit">Move</button>
-                        </form>
                     </article>
                 {% else %}
                     <div class="column-empty">

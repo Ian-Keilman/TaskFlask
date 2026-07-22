@@ -105,15 +105,13 @@ def new_project():
 def project_detail(project_id):
     project = _require_project(project_id)
     sprints = models.list_sprints(project_id)
-    burnup_sprints = models.get_project_burnup(project_id)
-    for sprint in burnup_sprints:
-        sprint["board_url"] = url_for("main.sprint_detail", sprint_id=sprint["id"])
+    burnup = models.get_project_burnup(project_id)
 
     return render_template(
         "project_detail.html",
         project=project,
         sprints=sprints,
-        burnup_sprints=burnup_sprints,
+        burnup=burnup,
     )
 
 
@@ -297,6 +295,7 @@ def new_task(sprint_id):
         "assignee": "",
         "added_on": datetime.now(PACIFIC_TIME).date().isoformat(),
         "due_date": "",
+        "completed_at": "",
     }
     errors = {}
 
@@ -314,6 +313,7 @@ def new_task(sprint_id):
                 task["assignee"],
                 task["added_on"],
                 task["due_date"],
+                task["completed_at"],
             )
             flash("Task created.")
             return redirect(url_for("main.sprint_detail", sprint_id=sprint_id))
@@ -329,7 +329,6 @@ def new_task(sprint_id):
         errors=errors,
         form_action=url_for("main.new_task", sprint_id=sprint_id),
         priorities=forms.VALID_PRIORITIES,
-        story_points_options=forms.VALID_STORY_POINTS,
         statuses=forms.VALID_STATUSES,
     )
 
@@ -355,6 +354,7 @@ def edit_task(task_id):
                 data["assignee"],
                 data["added_on"],
                 data["due_date"],
+                data["completed_at"],
             )
             flash("Task updated.")
             return redirect(url_for("main.sprint_detail", sprint_id=sprint["id"]))
@@ -371,7 +371,6 @@ def edit_task(task_id):
         errors=errors,
         form_action=url_for("main.edit_task", task_id=task_id),
         priorities=forms.VALID_PRIORITIES,
-        story_points_options=forms.VALID_STORY_POINTS,
         statuses=forms.VALID_STATUSES,
     )
 
@@ -386,7 +385,11 @@ def change_task_status(task_id):
         flash("Invalid task status.")
         return redirect(url_for("main.sprint_detail", sprint_id=sprint["id"]))
 
-    models.update_task_status(task_id, new_status)
+    models.update_task_status(
+        task_id,
+        new_status,
+        request.form.getlist("ordered_task_ids"),
+    )
 
     flash("Task status updated.")
     return redirect(url_for("main.sprint_detail", sprint_id=sprint["id"]))

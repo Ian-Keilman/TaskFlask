@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 VALID_SPRINT_STATUSES = ["Active", "Completed"]
 VALID_STATUSES = ["To Do", "In Progress", "Done"]
 VALID_PRIORITIES = ["Low", "Medium", "High"]
-VALID_STORY_POINTS = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89]
+MAX_STORY_POINTS = 9223372036854775807
 PACIFIC_TIME = ZoneInfo("America/Los_Angeles")
 
 
@@ -76,6 +76,7 @@ def validate_task(form_data):
         "added_on": _text(form_data, "added_on")
         or datetime.now(PACIFIC_TIME).date().isoformat(),
         "due_date": _text(form_data, "due_date"),
+        "completed_at": _text(form_data, "completed_at"),
     }
 
     errors = {}
@@ -96,15 +97,28 @@ def validate_task(form_data):
         errors["priority"] = "Choose a valid priority."
 
     if data["story_points"] is None:
-        errors["story_points"] = "Story points are required."
-    elif data["story_points"] not in VALID_STORY_POINTS:
-        errors["story_points"] = "Choose a Fibonacci estimate."
+        errors["story_points"] = (
+            "Story points are required and must be a whole number."
+        )
+    elif data["story_points"] < 1:
+        errors["story_points"] = "Story points must be at least 1."
+    elif data["story_points"] > MAX_STORY_POINTS:
+        errors["story_points"] = "Story points are too large."
 
     if not _looks_like_date(data["due_date"]):
         errors["due_date"] = "Due date must use YYYY-MM-DD."
 
     if not _looks_like_date(data["added_on"]):
         errors["added_on"] = "Added on date must use YYYY-MM-DD."
+
+    if not _looks_like_date(data["completed_at"]):
+        errors["completed_at"] = "Completed on date must use YYYY-MM-DD."
+    elif (
+        data["completed_at"]
+        and _looks_like_date(data["added_on"])
+        and data["completed_at"] < data["added_on"]
+    ):
+        errors["completed_at"] = "Completed on date cannot be before the added on date."
 
     return data, errors
 
