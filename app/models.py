@@ -1,12 +1,29 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timezone
+from zoneinfo import ZoneInfo
 
-from .burnup import build_burnup_series
+from .burnup import build_project_burnup_series
 from .db import get_db
 from .progress import progress_from_counts, with_progress
 
 
+PACIFIC_TIME = ZoneInfo("America/Los_Angeles")
+
+
 def _now():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _completion_timestamp(completed_on):
+    """Convert a user-selected Pacific calendar date into a UTC timestamp."""
+    if not completed_on:
+        return None
+
+    local_midnight = datetime.combine(
+        date.fromisoformat(completed_on),
+        time.min,
+        tzinfo=PACIFIC_TIME,
+    )
+    return local_midnight.astimezone(timezone.utc).replace(microsecond=0).isoformat()
 
 
 # Return all projects, newest updated first.
@@ -84,7 +101,9 @@ def list_sprints(project_id):
             COUNT(tasks.id) AS task_count,
             SUM(CASE WHEN tasks.status = 'To Do' THEN 1 ELSE 0 END) AS to_do_count,
             SUM(CASE WHEN tasks.status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress_count,
-            SUM(CASE WHEN tasks.status = 'Done' THEN 1 ELSE 0 END) AS done_count
+            SUM(CASE WHEN tasks.status = 'Done' THEN 1 ELSE 0 END) AS done_count,
+            COALESCE(SUM(tasks.story_points), 0) AS total_points,
+            COALESCE(SUM(CASE WHEN tasks.status = 'Done' THEN tasks.story_points ELSE 0 END), 0) AS completed_points
         FROM sprints
         LEFT JOIN tasks ON tasks.sprint_id = sprints.id
         WHERE sprints.project_id = ?
@@ -97,13 +116,17 @@ def list_sprints(project_id):
 
 
 def get_project_burnup(project_id):
-    """Return chart-ready story-point progress for every project sprint."""
+    """Return one cumulative story-point series for the entire project."""
+    project = get_project(project_id)
+    if project is None:
+        return None
+
     sprints = get_db().execute(
         """
         SELECT *
         FROM sprints
         WHERE project_id = ?
-        ORDER BY CASE status WHEN 'Active' THEN 0 ELSE 1 END, id DESC
+        ORDER BY COALESCE(start_date, SUBSTR(created_at, 1, 10)), id
         """,
         (project_id,),
     ).fetchall()
@@ -118,14 +141,7 @@ def get_project_burnup(project_id):
         (project_id,),
     ).fetchall()
 
-    tasks_by_sprint = {sprint["id"]: [] for sprint in sprints}
-    for task in tasks:
-        tasks_by_sprint[task["sprint_id"]].append(task)
-
-    return [
-        build_burnup_series(sprint, tasks_by_sprint[sprint["id"]])
-        for sprint in sprints
-    ]
+    return build_project_burnup_series(project, sprints, tasks)
 
 
 # Return one sprint by id.
@@ -210,7 +226,7 @@ def update_sprint_status(sprint_id, status):
     get_db().commit()
 
 
-# Return simple sprint progress based on task statuses.
+# Return task-status counts plus story-point completion progress for one sprint.
 def get_sprint_progress(sprint_id):
     row = get_db().execute(
         """
@@ -218,7 +234,9 @@ def get_sprint_progress(sprint_id):
             COUNT(*) AS total,
             COALESCE(SUM(CASE WHEN status = 'To Do' THEN 1 ELSE 0 END), 0) AS to_do,
             COALESCE(SUM(CASE WHEN status = 'In Progress' THEN 1 ELSE 0 END), 0) AS in_progress,
-            COALESCE(SUM(CASE WHEN status = 'Done' THEN 1 ELSE 0 END), 0) AS done
+            COALESCE(SUM(CASE WHEN status = 'Done' THEN 1 ELSE 0 END), 0) AS done,
+            COALESCE(SUM(story_points), 0) AS total_points,
+            COALESCE(SUM(CASE WHEN status = 'Done' THEN story_points ELSE 0 END), 0) AS completed_points
         FROM tasks
         WHERE sprint_id = ?
         """,
@@ -226,7 +244,12 @@ def get_sprint_progress(sprint_id):
     ).fetchone()
 
     return progress_from_counts(
-        row["total"], row["to_do"], row["in_progress"], row["done"]
+        row["total"],
+        row["to_do"],
+        row["in_progress"],
+        row["done"],
+        row["total_points"],
+        row["completed_points"],
     )
 
 
@@ -243,7 +266,9 @@ def list_projects_with_sprint_counts(sort="recent"):
             COUNT(tasks.id) AS task_count,
             SUM(CASE WHEN tasks.status = 'To Do' THEN 1 ELSE 0 END) AS to_do_count,
             SUM(CASE WHEN tasks.status = 'In Progress' THEN 1 ELSE 0 END) AS in_progress_count,
-            SUM(CASE WHEN tasks.status = 'Done' THEN 1 ELSE 0 END) AS done_count
+            SUM(CASE WHEN tasks.status = 'Done' THEN 1 ELSE 0 END) AS done_count,
+            COALESCE(SUM(tasks.story_points), 0) AS total_points,
+            COALESCE(SUM(CASE WHEN tasks.status = 'Done' THEN tasks.story_points ELSE 0 END), 0) AS completed_points
         FROM projects
         LEFT JOIN sprints ON sprints.project_id = projects.id
         LEFT JOIN tasks ON tasks.sprint_id = sprints.id
@@ -357,14 +382,8 @@ def list_tasks(sprint_id, filters=None):
                 WHEN 'Done' THEN 3
                 ELSE 4
             END,
-            CASE priority
-                WHEN 'High' THEN 1
-                WHEN 'Medium' THEN 2
-                WHEN 'Low' THEN 3
-                ELSE 4
-            END,
-            added_on ASC,
-            created_at ASC
+            board_order ASC,
+            id ASC
     """
 
     return get_db().execute(query, params).fetchall()
@@ -393,21 +412,36 @@ def create_task(
     assignee,
     added_on,
     due_date,
+    completed_on="",
 ):
     timestamp = _now()
-    completed_at = timestamp if status == "Done" else None
+    completed_at = (
+        _completion_timestamp(completed_on) or timestamp
+        if status == "Done"
+        else None
+    )
+    db = get_db()
+    next_order = db.execute(
+        """
+        SELECT COALESCE(MAX(board_order), -1) + 1 AS next_order
+        FROM tasks
+        WHERE sprint_id = ? AND status = ?
+        """,
+        (sprint_id, status),
+    ).fetchone()["next_order"]
 
-    cursor = get_db().execute(
+    cursor = db.execute(
         """
         INSERT INTO tasks
-            (sprint_id, title, description, status, priority, story_points, assignee, added_on, due_date, completed_at, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (sprint_id, title, description, status, board_order, priority, story_points, assignee, added_on, due_date, completed_at, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             sprint_id,
             title,
             description,
             status,
+            next_order,
             priority,
             story_points,
             assignee,
@@ -419,7 +453,7 @@ def create_task(
         ),
     )
 
-    get_db().commit()
+    db.commit()
     return cursor.lastrowid
 
 
@@ -434,16 +468,32 @@ def update_task(
     assignee,
     added_on,
     due_date,
+    completed_on="",
 ):
     timestamp = _now()
     existing = get_task(task_id)
     completed_at = None
     if status == "Done":
         completed_at = (
-            existing["completed_at"]
-            if existing and existing["status"] == "Done" and existing["completed_at"]
-            else timestamp
+            _completion_timestamp(completed_on)
+            or (
+                existing["completed_at"]
+                if existing
+                and existing["status"] == "Done"
+                and existing["completed_at"]
+                else timestamp
+            )
         )
+    board_order = existing["board_order"] if existing else 0
+    if existing and existing["status"] != status:
+        board_order = get_db().execute(
+            """
+            SELECT COALESCE(MAX(board_order), -1) + 1 AS next_order
+            FROM tasks
+            WHERE sprint_id = ? AND status = ?
+            """,
+            (existing["sprint_id"], status),
+        ).fetchone()["next_order"]
 
     get_db().execute(
         """
@@ -451,6 +501,7 @@ def update_task(
         SET title = ?,
             description = ?,
             status = ?,
+            board_order = ?,
             priority = ?,
             story_points = ?,
             assignee = ?,
@@ -464,6 +515,7 @@ def update_task(
             title,
             description,
             status,
+            board_order,
             priority,
             story_points,
             assignee,
@@ -478,10 +530,13 @@ def update_task(
     get_db().commit()
 
 
-# Move a task between To Do, In Progress, and Done.
-def update_task_status(task_id, status):
+# Move or reorder a task within the sprint board.
+def update_task_status(task_id, status, ordered_task_ids=None):
     timestamp = _now()
     task = get_task(task_id)
+    if task is None:
+        return
+    previous_status = task["status"]
     completed_at = None
     if status == "Done":
         completed_at = (
@@ -490,7 +545,8 @@ def update_task_status(task_id, status):
             else timestamp
         )
 
-    get_db().execute(
+    db = get_db()
+    db.execute(
         """
         UPDATE tasks
         SET status = ?, completed_at = ?, updated_at = ?
@@ -499,7 +555,45 @@ def update_task_status(task_id, status):
         (status, completed_at, timestamp, task_id),
     )
 
-    get_db().commit()
+    current_ids = [
+        row["id"]
+        for row in db.execute(
+            """
+            SELECT id
+            FROM tasks
+            WHERE sprint_id = ? AND status = ?
+            ORDER BY board_order, id
+            """,
+            (task["sprint_id"], status),
+        ).fetchall()
+    ]
+
+    requested_ids = []
+    for value in ordered_task_ids or []:
+        try:
+            requested_id = int(value)
+        except (TypeError, ValueError):
+            continue
+        if requested_id in current_ids and requested_id not in requested_ids:
+            requested_ids.append(requested_id)
+
+    if requested_ids:
+        final_ids = requested_ids + [
+            current_id for current_id in current_ids if current_id not in requested_ids
+        ]
+    elif previous_status != status:
+        final_ids = [current_id for current_id in current_ids if current_id != task_id]
+        final_ids.append(task_id)
+    else:
+        final_ids = current_ids
+
+    for position, current_id in enumerate(final_ids):
+        db.execute(
+            "UPDATE tasks SET board_order = ? WHERE id = ?",
+            (position, current_id),
+        )
+
+    db.commit()
 
 
 # Delete a task.
