@@ -92,7 +92,9 @@
                                 {{ project.name }}
                             </a>
                         </h3>
-                        <p>{{ project.description or "No project description yet." }}</p>
+                        <div class="dashboard-project-description markdown-content markdown-summary">
+                            {{ (project.description or "No project description yet.")|markdown }}
+                        </div>
 
                         <div class="project-card-meta">
                             {% if project.active_sprint_count %}
@@ -104,8 +106,8 @@
                             <span class="mini-pill neutral">Updated {{ project.updated_at|friendly_datetime }}</span>
                         </div>
 
-                        {% if project.total %}
-                            <p class="muted"><strong>{{ project.percent_complete }}% complete</strong> · {{ project.done }} of {{ project.total }} tasks done</p>
+                        {% if project.total_points %}
+                            <p class="muted"><strong>{{ project.percent_complete }}% complete</strong> · {{ project.completed_points }} of {{ project.total_points }} story points</p>
                         {% endif %}
                     </div>
 

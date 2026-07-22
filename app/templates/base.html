@@ -30,6 +30,32 @@
                     Projects
                 </a>
             </div>
+
+            {% if project is defined and project and project.id is defined %}
+                <div class="nav-context" aria-label="Current project shortcuts">
+                    <span class="nav-context-label">Current project</span>
+                    <a
+                        class="nav-project-link{% if request.endpoint == 'main.project_detail' %} active{% endif %}"
+                        href="{{ url_for('main.project_detail', project_id=project.id) }}"
+                        title="Open {{ project.name }}"
+                    >
+                        <span class="nav-project-dot" aria-hidden="true"></span>
+                        <span>{{ project.name }}</span>
+                    </a>
+
+                    <div class="nav-context-actions">
+                        {% if request.endpoint == 'main.project_detail' %}
+                            <a href="#planning-cycles">Sprints</a>
+                            <a href="#project-burnup">Burnup</a>
+                        {% elif sprint is defined and sprint and sprint.id is defined %}
+                            <a
+                                class="{% if request.endpoint == 'main.sprint_detail' %}active{% endif %}"
+                                href="{{ url_for('main.sprint_detail', sprint_id=sprint.id) }}"
+                            >Sprint Board</a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
         </nav>
     </header>
 
