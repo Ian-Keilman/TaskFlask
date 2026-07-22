@@ -29,8 +29,9 @@ def _value(row, key, default=None):
         value = getattr(row, key, default)
     return default if value is None else value
 
-# Build daily total and completed story  point lines for one sprint.
+
 def build_burnup_series(sprint, tasks, today=None):
+    """Build daily total and completed story-point lines for one sprint."""
     today = today or datetime.now(PACIFIC_TIME).date()
     tasks = list(tasks)
 
@@ -107,6 +108,102 @@ def build_burnup_series(sprint, tasks, today=None):
         "id": _value(sprint, "id"),
         "name": _value(sprint, "name", "Sprint"),
         "status": _value(sprint, "status", "Active"),
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+        "total_points": total_points,
+        "completed_points": completed_points,
+        "percent_complete": round((completed_points / total_points) * 100)
+        if total_points
+        else 0,
+        "points": points,
+    }
+
+
+def build_project_burnup_series(project, sprints, tasks, today=None):
+    """Build one cumulative story-point series across every project sprint."""
+    today = today or datetime.now(PACIFIC_TIME).date()
+    sprints = list(sprints)
+    tasks = list(tasks)
+
+    task_added_dates = [
+        _as_date(_value(task, "added_on"))
+        or _as_date(_value(task, "created_at"))
+        for task in tasks
+    ]
+    task_added_dates = [value for value in task_added_dates if value]
+    task_activity_dates = [
+        value
+        for task in tasks
+        for value in (
+            _as_date(_value(task, "completed_at")),
+            _as_date(_value(task, "updated_at")),
+        )
+        if value
+    ]
+    sprint_dates = [
+        value
+        for sprint in sprints
+        for value in (
+            _as_date(_value(sprint, "start_date")),
+            _as_date(_value(sprint, "created_at")),
+        )
+        if value
+    ]
+    project_created = _as_date(_value(project, "created_at"))
+
+    start_candidates = task_added_dates + sprint_dates
+    if project_created:
+        start_candidates.append(project_created)
+    start = min(start_candidates) if start_candidates else today
+
+    end_candidates = [today, start] + task_added_dates + task_activity_dates
+    end = max(end_candidates)
+
+    points = []
+    current = start
+    while current <= end:
+        total = 0
+        completed = 0
+
+        for task in tasks:
+            story_points = int(_value(task, "story_points", 0) or 0)
+            added_on = (
+                _as_date(_value(task, "added_on"))
+                or _as_date(_value(task, "created_at"))
+                or start
+            )
+            if added_on <= current:
+                total += story_points
+
+            if _value(task, "status") == "Done":
+                completed_on = (
+                    _as_date(_value(task, "completed_at"))
+                    or _as_date(_value(task, "updated_at"))
+                    or added_on
+                )
+                if completed_on <= current:
+                    completed += story_points
+
+        points.append(
+            {
+                "date": current.isoformat(),
+                "total": total,
+                "completed": completed,
+            }
+        )
+        current += timedelta(days=1)
+
+    total_points = sum(int(_value(task, "story_points", 0) or 0) for task in tasks)
+    completed_points = sum(
+        int(_value(task, "story_points", 0) or 0)
+        for task in tasks
+        if _value(task, "status") == "Done"
+    )
+
+    return {
+        "project_id": _value(project, "id"),
+        "name": _value(project, "name", "Project"),
+        "sprint_count": len(sprints),
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
         "total_points": total_points,
